@@ -1,279 +1,208 @@
-require('dotenv').config()
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const { GoogleGenAI } = require("@google/genai");
 
-const express = require('express')
-const cors = require('cors')
-const { GoogleGenAI } = require('@google/genai')
+dotenv.config();
 
-const app = express()
-const PORT = process.env.PORT || 5000
+const app = express();
+const PORT = process.env.PORT || 5000;
 
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY
-})
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
 // Middleware
-app.use(cors())
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get("/api/health", (req, res) => {
   res.status(200).json({
-    status: 'success',
-    message: 'Nexus API is running! 🚀',
+    status: "success",
+    message: "Nexus API is running! 🚀",
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  })
-})
+    version: "1.0.0",
+  });
+});
 
-// AI problem analysis
-app.post('/api/analyze', async (req, res) => {
-  const { problem } = req.body
+// Root route
+app.get("/", (req, res) => {
+  res.json({
+    message: "Welcome to Nexus API",
+    endpoints: {
+      health: "/api/health",
+    },
+  });
+});
 
-  if (!problem || !problem.trim()) {
-    return res.status(400).json({
-      message: 'Problem description is required.'
-    })
-  }
-
+// AI Problem Analysis
+app.post("/api/analyze", async (req, res) => {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: `
-You are Nexus, an AI product discovery assistant.
+    const { problem } = req.body;
+
+    if (!problem || !problem.trim()) {
+      return res.status(400).json({
+        error: "Please provide a problem to analyze.",
+      });
+    }
+
+    const prompt = `
+You are Nexus, an AI problem-solving assistant.
 
 Analyze the following problem:
 
 "${problem}"
 
-Return ONLY valid JSON in this exact structure:
+Return your response in this exact structure:
 
-{
-  "targetUsers": "Who experiences this problem",
-  "coreProblem": "The main problem in one clear sentence",
-  "whyItMatters": "Why solving this problem matters",
-  "painPoints": [
-    "Pain point 1",
-    "Pain point 2",
-    "Pain point 3"
-  ]
-}
+## Target Users
+Who experiences this problem?
 
-Do not include markdown.
-Do not include explanations outside the JSON.
-      `
-    })
+## Core Problem
+What is the main problem?
 
-    const text = response.text
-    const analysis = JSON.parse(text)
+## Why It Matters
+Why is solving this problem valuable?
+
+## Pain Points
+List 3 specific pain points.
+
+Keep the response concise, practical, and easy to understand.
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: prompt,
+    });
 
     res.json({
-      problem,
-      analysis
-    })
+      success: true,
+      analysis: response.text,
+    });
   } catch (error) {
-    console.error('AI analysis error:', error)
+    console.error("AI analysis error:", error);
+
+    if (error.status === 429) {
+      return res.status(429).json({
+        error: "AI quota reached. Please try again later.",
+        code: "QUOTA_EXCEEDED",
+      });
+    }
+
+    if (error.status === 503) {
+      return res.status(503).json({
+        error: "The AI service is temporarily busy. Please try again.",
+        code: "AI_UNAVAILABLE",
+      });
+    }
 
     res.status(500).json({
-      message: 'Failed to analyze the problem.',
-      error: error.message
-    })
+      error: "Unable to analyze the problem right now.",
+      code: "AI_ERROR",
+    });
   }
-})
+});
 
-app.post('/api/solutions', async (req, res) => {
-  const { problem, analysis } = req.body
-
-  if (!problem || !analysis) {
-    return res.status(400).json({
-      message: 'Problem and analysis are required.'
-    })
-  }
-
+// AI Solutions
+app.post("/api/solutions", async (req, res) => {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: `
-You are Nexus, an AI product discovery assistant.
+    const { problem, analysis } = req.body;
 
-A user has identified this problem:
+    if (!problem || !problem.trim()) {
+      return res.status(400).json({
+        error: "Please provide a problem.",
+      });
+    }
+
+    const prompt = `
+You are Nexus, an AI product strategist.
+
+Based on this problem:
 
 "${problem}"
 
-Here is the problem analysis:
+And this analysis:
 
-${JSON.stringify(analysis, null, 2)}
+${analysis || "No previous analysis provided."}
 
-Generate exactly 3 different potential product solutions.
+Generate exactly 3 practical solution ideas.
 
-Each solution must have:
+For each solution provide:
 
-- name
-- description
-- targetUsers
-- keyFeatures: exactly 4 features
-- pros: exactly 2 points
-- cons: exactly 2 points
-- difficulty: one of "Easy", "Medium", or "Hard"
+1. Solution name
+2. Short description
+3. Key features (3 to 5)
+4. Pros (2 to 3)
+5. Cons (2 to 3)
+6. Difficulty: Easy, Medium, or Hard
 
-Return ONLY valid JSON in this exact structure:
+Keep the ideas realistic and suitable for an MVP.
+
+Return the response as valid JSON in this format:
 
 {
   "solutions": [
     {
       "name": "Solution name",
-      "description": "What the product does",
-      "targetUsers": "Who would use it",
-      "keyFeatures": [
-        "Feature 1",
-        "Feature 2",
-        "Feature 3",
-        "Feature 4"
-      ],
-      "pros": [
-        "Pro 1",
-        "Pro 2"
-      ],
-      "cons": [
-        "Con 1",
-        "Con 2"
-      ],
-      "difficulty": "Easy"
+      "description": "Short description",
+      "features": ["Feature 1", "Feature 2", "Feature 3"],
+      "pros": ["Pro 1", "Pro 2"],
+      "cons": ["Con 1", "Con 2"],
+      "difficulty": "Medium"
     }
   ]
 }
+`;
 
-Do not include markdown.
-Do not include explanations outside the JSON.
-      `
-    })
-
-    const text = response.text
-    const solutions = JSON.parse(text)
-
-    res.json(solutions)
-  } catch (error) {
-    console.error('AI solutions error:', error)
-
-    res.status(500).json({
-      message: 'Failed to generate solutions.',
-      error: error.message
-    })
-  }
-})
-
-app.post('/api/blueprint', async (req, res) => {
-  const { problem, analysis, solution } = req.body
-
-  if (!problem || !analysis || !solution) {
-    return res.status(400).json({
-      message: 'Problem, analysis, and solution are required.'
-    })
-  }
-
-  try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: `
-You are Nexus, an AI product development assistant.
+      model: "gemini-3.6-flash",
+      contents: prompt,
+    });
 
-The original problem is:
+    let text = response.text.trim();
 
-"${problem}"
+    text = text
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
 
-Problem analysis:
+    const solutions = JSON.parse(text);
 
-${JSON.stringify(analysis, null, 2)}
-
-The user selected this solution:
-
-${JSON.stringify(solution, null, 2)}
-
-Create a realistic MVP blueprint for this product.
-
-Return ONLY valid JSON using this exact structure:
-
-{
-  "productName": "A suitable product name",
-  "description": "A short description of the MVP",
-  "coreFeatures": [
-    "Feature 1",
-    "Feature 2",
-    "Feature 3",
-    "Feature 4",
-    "Feature 5"
-  ],
-  "pages": [
-    {
-      "name": "Page name",
-      "purpose": "What this page does"
-    }
-  ],
-  "techStack": {
-    "frontend": "Recommended frontend technology",
-    "backend": "Recommended backend technology",
-    "database": "Recommended database",
-    "other": [
-      "Other technology or service"
-    ]
-  },
-  "database": [
-    {
-      "name": "Table or collection name",
-      "purpose": "What it stores"
-    }
-  ],
-  "developmentTasks": [
-    "Task 1",
-    "Task 2",
-    "Task 3",
-    "Task 4",
-    "Task 5"
-  ],
-  "buildOrder": [
-    "Step 1",
-    "Step 2",
-    "Step 3",
-    "Step 4",
-    "Step 5"
-  ]
-}
-
-Keep the MVP realistic for a small development team.
-
-Do not include unnecessary features.
-Do not include markdown.
-Do not include explanations outside the JSON.
-      `
-    })
-
-    const text = response.text
-    const blueprint = JSON.parse(text)
-
-    res.json(blueprint)
+    res.json({
+      success: true,
+      solutions: solutions.solutions,
+    });
   } catch (error) {
-    console.error('AI blueprint error:', error)
+    console.error("AI solutions error:", error);
+
+    if (error.status === 429) {
+      return res.status(429).json({
+        error: "AI quota reached. Please try again later.",
+        code: "QUOTA_EXCEEDED",
+      });
+    }
+
+    if (error.status === 503) {
+      return res.status(503).json({
+        error: "The AI service is temporarily busy. Please try again.",
+        code: "AI_UNAVAILABLE",
+      });
+    }
 
     res.status(500).json({
-      message: 'Failed to generate MVP blueprint.',
-      error: error.message
-    })
+      error: "Unable to generate solutions right now.",
+      code: "AI_ERROR",
+    });
   }
-})
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to Nexus API',
-    endpoints: {
-      health: '/api/health',
-      analyze: '/api/analyze'
-    }
-  })
-})
+});
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Nexus server is running on http://localhost:${PORT}`)
-  console.log(`📡 Health check available at http://localhost:${PORT}/api/health`)
-})
+  console.log(`🚀 Nexus server is running on http://localhost:${PORT}`);
+  console.log(
+    `📡 Health check available at http://localhost:${PORT}/api/health`
+  );
+});

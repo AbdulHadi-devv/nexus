@@ -1,44 +1,72 @@
-function SolutionCard({ solution, onSelect }) {
+function SolutionCard({ solution, index, onSelect }) {
   return (
-    <article>
+    <article className="solution-card">
+
+      <div className="solution-card-top">
+        <span className="solution-number">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+
+        <span className="difficulty-badge">
+          {solution.difficulty}
+        </span>
+      </div>
+
       <h3>{solution.name}</h3>
 
-      <p>{solution.description}</p>
-
-      <h4>Target Users</h4>
-      <p>{solution.targetUsers}</p>
-
-      <h4>Key Features</h4>
-
-      <ul>
-        {solution.keyFeatures.map((feature, index) => (
-          <li key={index}>{feature}</li>
-        ))}
-      </ul>
-
-      <h4>Pros</h4>
-
-      <ul>
-        {solution.pros.map((pro, index) => (
-          <li key={index}>{pro}</li>
-        ))}
-      </ul>
-
-      <h4>Cons</h4>
-
-      <ul>
-        {solution.cons.map((con, index) => (
-          <li key={index}>{con}</li>
-        ))}
-      </ul>
-
-      <p>
-        <strong>Difficulty:</strong> {solution.difficulty}
+      <p className="solution-description">
+        {solution.description}
       </p>
 
-      <button onClick={() => onSelect(solution)}>
-        Choose This Solution
+      <div className="solution-section">
+        <span className="card-label">KEY FEATURES</span>
+
+        <ul>
+          {solution.keyFeatures.map((feature, featureIndex) => (
+            <li key={featureIndex}>
+              {feature}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="solution-section">
+        <span className="card-label">TARGET USERS</span>
+
+        <p>{solution.targetUsers}</p>
+      </div>
+
+      <div className="solution-section pros-cons">
+
+        <div>
+          <span className="card-label">PROS</span>
+
+          <ul>
+            {solution.pros.map((pro, proIndex) => (
+              <li key={proIndex}>{pro}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <span className="card-label">CONS</span>
+
+          <ul>
+            {solution.cons.map((con, conIndex) => (
+              <li key={conIndex}>{con}</li>
+            ))}
+          </ul>
+        </div>
+
+      </div>
+
+      <button
+        className="solution-button"
+        onClick={() => onSelect(solution)}
+      >
+        Choose this solution →
       </button>
+
     </article>
   )
 }

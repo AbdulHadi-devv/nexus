@@ -1,81 +1,238 @@
-function Blueprint({ blueprint }) {
+function Blueprint({ blueprint, loading }) {
+  if (loading) {
+    return (
+      <section className="blueprint-section">
+
+        <div className="section-heading">
+          <span className="step-label">04</span>
+
+          <h2>MVP Blueprint</h2>
+
+          <p>
+            Nexus is turning your selected solution into
+            an actionable product plan.
+          </p>
+        </div>
+
+        <div className="loading-card">
+          <div className="loading-spinner"></div>
+
+          <strong>Building your MVP blueprint</strong>
+
+          <p>
+            Nexus is organizing the features, pages,
+            database, technology and development plan.
+          </p>
+        </div>
+
+      </section>
+    )
+  }
+
   return (
-    <div>
-      <h2>MVP Blueprint</h2>
+    <section className="blueprint-section">
 
-      <h3>{blueprint.productName}</h3>
+      <div className="section-heading">
+        <span className="step-label">04</span>
 
-      <p>{blueprint.description}</p>
+        <h2>MVP Blueprint</h2>
 
-      <h3>Core Features</h3>
+        <p>
+          Your selected solution, turned into an actionable
+          product plan.
+        </p>
+      </div>
 
-      <ul>
-        {blueprint.coreFeatures.map((feature, index) => (
-          <li key={index}>{feature}</li>
-        ))}
-      </ul>
+      <div className="blueprint-hero">
 
-      <h3>Pages</h3>
+        <div>
+          <span className="card-label">PRODUCT</span>
 
-      <ul>
-        {blueprint.pages.map((page, index) => (
-          <li key={index}>
-            <strong>{page.name}</strong>: {page.purpose}
-          </li>
-        ))}
-      </ul>
+          <h3>{blueprint.productName}</h3>
 
-      <h3>Tech Stack</h3>
+          <p>{blueprint.description}</p>
+        </div>
 
-      <p>
-        <strong>Frontend:</strong>{' '}
-        {blueprint.techStack.frontend}
-      </p>
+        <div className="blueprint-status">
+          MVP READY
+        </div>
 
-      <p>
-        <strong>Backend:</strong>{' '}
-        {blueprint.techStack.backend}
-      </p>
+      </div>
 
-      <p>
-        <strong>Database:</strong>{' '}
-        {blueprint.techStack.database}
-      </p>
+      <div className="blueprint-block">
 
-      <h4>Other</h4>
+        <div className="blueprint-block-header">
+          <span className="card-label">01</span>
 
-      <ul>
-        {blueprint.techStack.other.map((item, index) => (
-          <li key={index}>{item}</li>
-        ))}
-      </ul>
+          <h3>Core Features</h3>
+        </div>
 
-      <h3>Database</h3>
+        <div className="feature-grid">
 
-      <ul>
-        {blueprint.database.map((item, index) => (
-          <li key={index}>
-            <strong>{item.name}</strong>: {item.purpose}
-          </li>
-        ))}
-      </ul>
+          {blueprint.coreFeatures.map((feature, index) => (
+            <div className="feature-item" key={index}>
 
-      <h3>Development Tasks</h3>
+              <span>
+                {String(index + 1).padStart(2, '0')}
+              </span>
 
-      <ul>
-        {blueprint.developmentTasks.map((task, index) => (
-          <li key={index}>{task}</li>
-        ))}
-      </ul>
+              <p>{feature}</p>
 
-      <h3>Build Order</h3>
+            </div>
+          ))}
 
-      <ol>
-        {blueprint.buildOrder.map((step, index) => (
-          <li key={index}>{step}</li>
-        ))}
-      </ol>
-    </div>
+        </div>
+
+      </div>
+
+      <div className="blueprint-block">
+
+        <div className="blueprint-block-header">
+          <span className="card-label">02</span>
+
+          <h3>Pages</h3>
+        </div>
+
+        <div className="pages-list">
+
+          {blueprint.pages.map((page, index) => (
+            <div className="page-item" key={index}>
+
+              <span className="page-number">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+
+              <div>
+                <strong>{page.name}</strong>
+                <p>{page.purpose}</p>
+              </div>
+
+            </div>
+          ))}
+
+        </div>
+
+      </div>
+
+      <div className="blueprint-two-column">
+
+        <div className="blueprint-block">
+
+          <div className="blueprint-block-header">
+            <span className="card-label">03</span>
+
+            <h3>Tech Stack</h3>
+          </div>
+
+          <div className="tech-stack">
+
+            <div>
+              <span>FRONTEND</span>
+              <strong>{blueprint.techStack.frontend}</strong>
+            </div>
+
+            <div>
+              <span>BACKEND</span>
+              <strong>{blueprint.techStack.backend}</strong>
+            </div>
+
+            <div>
+              <span>DATABASE</span>
+              <strong>{blueprint.techStack.database}</strong>
+            </div>
+
+            <div>
+              <span>OTHER</span>
+
+              {blueprint.techStack.other.map((item, index) => (
+                <strong key={index}>{item}</strong>
+              ))}
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div className="blueprint-block">
+
+          <div className="blueprint-block-header">
+            <span className="card-label">04</span>
+
+            <h3>Database</h3>
+          </div>
+
+          <div className="database-list">
+
+            {blueprint.database.map((item, index) => (
+              <div key={index}>
+
+                <strong>{item.name}</strong>
+
+                <p>{item.purpose}</p>
+
+              </div>
+            ))}
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div className="blueprint-block">
+
+        <div className="blueprint-block-header">
+          <span className="card-label">05</span>
+
+          <h3>Development Tasks</h3>
+        </div>
+
+        <div className="task-list">
+
+          {blueprint.developmentTasks.map((task, index) => (
+            <div className="task-item" key={index}>
+
+              <span className="task-number">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+
+              <span>{task}</span>
+
+            </div>
+          ))}
+
+        </div>
+
+      </div>
+
+      <div className="blueprint-block build-order">
+
+        <div className="blueprint-block-header">
+          <span className="card-label">06</span>
+
+          <h3>Recommended Build Order</h3>
+        </div>
+
+        <ol>
+
+          {blueprint.buildOrder.map((step, index) => (
+            <li key={index}>
+
+              <span>
+                {String(index + 1).padStart(2, '0')}
+              </span>
+
+              {step}
+
+            </li>
+          ))}
+
+        </ol>
+
+      </div>
+
+    </section>
   )
 }
 

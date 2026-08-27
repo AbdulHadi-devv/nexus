@@ -34,7 +34,6 @@ function ProblemInput() {
 
     try {
       const data = await analyzeProblem(problem)
-
       setAnalysis(data.analysis)
     } catch (error) {
       console.error('Analysis error:', error)
@@ -55,7 +54,6 @@ function ProblemInput() {
 
     try {
       const data = await generateSolutions(problem, analysis)
-
       setSolutions(data.solutions)
     } catch (error) {
       console.error('Solutions error:', error)
@@ -89,21 +87,57 @@ function ProblemInput() {
   }
 
   return (
-    <section>
-      <h2>What problem are you trying to solve?</h2>
+    <section className="nexus-workspace">
 
-      <textarea
-        value={problem}
-        onChange={(event) => setProblem(event.target.value)}
-        placeholder="Describe the problem..."
-        rows="6"
-      />
+      <div className="problem-card">
 
-      <button onClick={handleAnalyze} disabled={loading}>
-        {loading ? 'Analyzing...' : 'Analyze Problem'}
-      </button>
+        <div className="problem-card-header">
+          <div>
+            <span className="step-label">01</span>
 
-      {error && <p>{error}</p>}
+            <h2>Describe your problem</h2>
+
+            <p>
+              What challenge are you trying to solve?
+            </p>
+          </div>
+
+          <div className="ai-indicator">
+            <span></span>
+            AI POWERED
+          </div>
+        </div>
+
+        <textarea
+          value={problem}
+          onChange={(event) => setProblem(event.target.value)}
+          placeholder="Example: Students struggle to find good study resources for difficult topics..."
+          rows="7"
+        />
+
+        <div className="problem-card-footer">
+
+          <span className="character-count">
+            {problem.length} characters
+          </span>
+
+          <button
+            className="primary-button"
+            onClick={handleAnalyze}
+            disabled={loading}
+          >
+            {loading ? 'Analyzing...' : 'Analyze Problem →'}
+          </button>
+
+        </div>
+
+      </div>
+
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
 
       {analysis && (
         <ProblemAnalysis
@@ -121,30 +155,39 @@ function ProblemInput() {
       )}
 
       {selectedSolution && (
-        <div>
-          <h2>Selected Solution</h2>
+        <div className="selected-solution">
 
-          <h3>{selectedSolution.name}</h3>
+          <div>
+            <span className="step-label">03</span>
 
-          <p>{selectedSolution.description}</p>
+            <h2>Solution selected</h2>
 
-          <p>
-            <strong>Difficulty:</strong>{' '}
-            {selectedSolution.difficulty}
-          </p>
+            <h3>{selectedSolution.name}</h3>
+
+            <p>{selectedSolution.description}</p>
+
+            <span className="difficulty-badge">
+              {selectedSolution.difficulty}
+            </span>
+          </div>
 
           <button
+            className="primary-button"
             onClick={handleGenerateBlueprint}
             disabled={loading}
           >
             {loading
-              ? 'Generating Blueprint...'
-              : 'Generate MVP Blueprint'}
+              ? 'Building Blueprint...'
+              : 'Generate MVP Blueprint →'}
           </button>
+
         </div>
       )}
 
-      {blueprint && <Blueprint blueprint={blueprint} />}
+      {blueprint && (
+        <Blueprint blueprint={blueprint} />
+      )}
+
     </section>
   )
 }
