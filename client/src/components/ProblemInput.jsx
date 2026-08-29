@@ -1,107 +1,111 @@
-import { useState } from 'react'
+import { useState } from 'react';
 
 import {
   analyzeProblem,
   generateSolutions,
   generateBlueprint
-} from '../services/api'
+} from '../services/api';
 
-import ProblemAnalysis from './ProblemAnalysis'
-import SolutionList from './SolutionList'
-import Blueprint from './Blueprint'
+import ProblemAnalysis from './ProblemAnalysis';
+import SolutionList from './SolutionList';
+import Blueprint from './Blueprint';
 
 function ProblemInput() {
-  const [problem, setProblem] = useState('')
-  const [analysis, setAnalysis] = useState(null)
-  const [solutions, setSolutions] = useState(null)
-  const [selectedSolution, setSelectedSolution] = useState(null)
-  const [blueprint, setBlueprint] = useState(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [problem, setProblem] = useState('');
+  const [analysis, setAnalysis] = useState(null);
+  const [solutions, setSolutions] = useState(null);
+  const [selectedSolution, setSelectedSolution] = useState(null);
+  const [blueprint, setBlueprint] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   async function handleAnalyze() {
     if (!problem.trim()) {
-      setError('Please describe a problem first.')
-      return
+      setError('Please describe a problem first.');
+      return;
     }
 
-    setError('')
-    setAnalysis(null)
-    setSolutions(null)
-    setSelectedSolution(null)
-    setBlueprint(null)
-    setLoading(true)
+    setError('');
+    setAnalysis(null);
+    setSolutions(null);
+    setSelectedSolution(null);
+    setBlueprint(null);
+    setLoading(true);
 
     try {
-      const data = await analyzeProblem(problem)
-      setAnalysis(data.analysis)
+      const data = await analyzeProblem(problem);
+      // The API returns { success: true, analysis: {...} }
+      setAnalysis(data.analysis);
+      console.log('Analysis received:', data.analysis);
     } catch (error) {
-      console.error('Analysis error:', error)
-      setError('Could not analyze the problem.')
+      console.error('Analysis error:', error);
+      setError('Could not analyze the problem. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleGenerateSolutions() {
-    if (!analysis) return
+    if (!analysis) {
+      setError('Please analyze the problem first.');
+      return;
+    }
 
-    setError('')
-    setSolutions(null)
-    setSelectedSolution(null)
-    setBlueprint(null)
-    setLoading(true)
+    setError('');
+    setSolutions(null);
+    setSelectedSolution(null);
+    setBlueprint(null);
+    setLoading(true);
 
     try {
-      const data = await generateSolutions(problem, analysis)
-      setSolutions(data.solutions)
+      const data = await generateSolutions(problem, analysis);
+      // The API returns { success: true, solutions: [...] }
+      setSolutions(data.solutions);
+      console.log('Solutions received:', data.solutions);
     } catch (error) {
-      console.error('Solutions error:', error)
-      setError('Could not generate solutions.')
+      console.error('Solutions error:', error);
+      setError('Could not generate solutions. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleGenerateBlueprint() {
-    if (!selectedSolution) return
+    if (!selectedSolution) {
+      setError('Please select a solution first.');
+      return;
+    }
 
-    setError('')
-    setBlueprint(null)
-    setLoading(true)
+    setError('');
+    setBlueprint(null);
+    setLoading(true);
 
     try {
       const data = await generateBlueprint(
         problem,
         analysis,
         selectedSolution
-      )
-
-      setBlueprint(data)
+      );
+      // The API returns { success: true, blueprint: {...} }
+      console.log('Blueprint API response:', data);
+      setBlueprint(data.blueprint); // ← This is the key fix!
     } catch (error) {
-      console.error('Blueprint error:', error)
-      setError('Could not generate the MVP blueprint.')
+      console.error('Blueprint error:', error);
+      setError('Could not generate the MVP blueprint. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
     <section className="nexus-workspace">
-
       <div className="problem-card">
-
         <div className="problem-card-header">
           <div>
             <span className="step-label">01</span>
-
             <h2>Describe your problem</h2>
-
-            <p>
-              What challenge are you trying to solve?
-            </p>
+            <p>What challenge are you trying to solve?</p>
           </div>
-
           <div className="ai-indicator">
             <span></span>
             AI POWERED
@@ -116,11 +120,9 @@ function ProblemInput() {
         />
 
         <div className="problem-card-footer">
-
           <span className="character-count">
             {problem.length} characters
           </span>
-
           <button
             className="primary-button"
             onClick={handleAnalyze}
@@ -128,9 +130,7 @@ function ProblemInput() {
           >
             {loading ? 'Analyzing...' : 'Analyze Problem →'}
           </button>
-
         </div>
-
       </div>
 
       {error && (
@@ -156,21 +156,15 @@ function ProblemInput() {
 
       {selectedSolution && (
         <div className="selected-solution">
-
           <div>
             <span className="step-label">03</span>
-
             <h2>Solution selected</h2>
-
             <h3>{selectedSolution.name}</h3>
-
             <p>{selectedSolution.description}</p>
-
             <span className="difficulty-badge">
               {selectedSolution.difficulty}
             </span>
           </div>
-
           <button
             className="primary-button"
             onClick={handleGenerateBlueprint}
@@ -180,16 +174,14 @@ function ProblemInput() {
               ? 'Building Blueprint...'
               : 'Generate MVP Blueprint →'}
           </button>
-
         </div>
       )}
 
       {blueprint && (
-        <Blueprint blueprint={blueprint} />
+        <Blueprint blueprint={blueprint} loading={loading} />
       )}
-
     </section>
-  )
+  );
 }
 
-export default ProblemInput
+export default ProblemInput;

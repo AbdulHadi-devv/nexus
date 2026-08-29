@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api'
+const API_URL = 'http://localhost:5000/api';
 
 export async function analyzeProblem(problem) {
   const response = await fetch(`${API_URL}/analyze`, {
@@ -7,15 +7,16 @@ export async function analyzeProblem(problem) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ problem })
-  })
+  });
 
-  const data = await response.json()
+  const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || data.message)
+    throw new Error(data.error || data.message);
   }
 
-  return data
+  // Return the full response, not just analysis
+  return data;
 }
 
 export async function generateSolutions(problem, analysis) {
@@ -28,15 +29,16 @@ export async function generateSolutions(problem, analysis) {
       problem,
       analysis
     })
-  })
+  });
 
-  const data = await response.json()
+  const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || data.message)
+    throw new Error(data.error || data.message);
   }
 
-  return data
+  // Return the full response
+  return data;
 }
 
 export async function generateBlueprint(problem, analysis, solution) {
@@ -50,13 +52,14 @@ export async function generateBlueprint(problem, analysis, solution) {
       analysis,
       solution
     })
-  })
+  });
 
-  const data = await response.json()
+  const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || data.message)
+    throw new Error(data.error || data.message);
   }
 
-  return data
+  // Return the full response
+  return data;
 }

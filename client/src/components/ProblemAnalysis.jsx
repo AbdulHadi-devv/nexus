@@ -1,7 +1,13 @@
 function ProblemAnalysis({ analysis, onGenerateSolutions, loading }) {
+  const targetUsers = analysis?.targetUsers || "Not available";
+  const coreProblem = analysis?.coreProblem || "Not available";
+  const whyItMatters = analysis?.whyItMatters || "Not available";
+  const painPoints = Array.isArray(analysis?.painPoints)
+    ? analysis.painPoints
+    : [];
+
   return (
     <section className="analysis-section">
-
       <div className="section-heading">
         <div>
           <span className="step-label">02</span>
@@ -14,29 +20,23 @@ function ProblemAnalysis({ analysis, onGenerateSolutions, loading }) {
       </div>
 
       <div className="analysis-grid">
-
         <article className="analysis-card">
           <span className="card-label">TARGET USERS</span>
-
-          <h3>{analysis.targetUsers}</h3>
+          <h3>{targetUsers}</h3>
         </article>
 
         <article className="analysis-card">
           <span className="card-label">CORE PROBLEM</span>
-
-          <p>{analysis.coreProblem}</p>
+          <p>{coreProblem}</p>
         </article>
-
       </div>
 
       <article className="analysis-card wide-card">
         <span className="card-label">WHY IT MATTERS</span>
-
-        <p>{analysis.whyItMatters}</p>
+        <p>{whyItMatters}</p>
       </article>
 
       <div className="pain-points">
-
         <div className="pain-points-header">
           <div>
             <span className="card-label">PAIN POINTS</span>
@@ -44,33 +44,32 @@ function ProblemAnalysis({ analysis, onGenerateSolutions, loading }) {
           </div>
 
           <span className="pain-count">
-            {analysis.painPoints.length} identified
+            {painPoints.length} identified
           </span>
         </div>
 
         <div className="pain-list">
+          {painPoints.length > 0 ? (
+            painPoints.map((painPoint, index) => (
+              <div className="pain-item" key={index}>
+                <span className="pain-number">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
 
-          {analysis.painPoints.map((painPoint, index) => (
-            <div className="pain-item" key={index}>
-
-              <span className="pain-number">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-
-              <p>{painPoint}</p>
-
+                <p>{painPoint}</p>
+              </div>
+            ))
+          ) : (
+            <div className="pain-item">
+              <p>No specific pain points were identified.</p>
             </div>
-          ))}
-
+          )}
         </div>
-
       </div>
 
       <div className="analysis-action">
-
         <div>
           <strong>Ready to explore solutions?</strong>
-
           <p>
             Nexus will generate multiple possible
             approaches to this problem.
@@ -82,15 +81,11 @@ function ProblemAnalysis({ analysis, onGenerateSolutions, loading }) {
           onClick={onGenerateSolutions}
           disabled={loading}
         >
-          {loading
-            ? 'Generating...'
-            : 'Generate Solutions →'}
+          {loading ? "Generating..." : "Generate Solutions →"}
         </button>
-
       </div>
-
     </section>
-  )
+  );
 }
 
-export default ProblemAnalysis
+export default ProblemAnalysis;
