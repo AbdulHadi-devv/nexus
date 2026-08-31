@@ -1,4 +1,15 @@
-function Blueprint({ blueprint, loading }) {
+import React from 'react';
+import { 
+  copyToClipboard, 
+  formatBlueprintForCopy, 
+  showToast,
+  exportAsJSON,
+  copyShareableLink,
+  generateShareableURL
+} from '../services/utils';
+import { toggleFavorite } from '../services/history';
+
+function Blueprint({ blueprint, loading, blueprintId, onRefresh }) {
   console.log("Blueprint component received:", blueprint);
 
   if (loading) {
@@ -37,6 +48,62 @@ function Blueprint({ blueprint, loading }) {
     );
   }
 
+  // Handle copy to clipboard
+  const handleCopy = async () => {
+    const text = formatBlueprintForCopy(blueprint);
+    const success = await copyToClipboard(text);
+    if (success) {
+      showToast('✅ Blueprint copied to clipboard!', 'success');
+    } else {
+      showToast('❌ Failed to copy. Please try again.', 'error');
+    }
+  };
+
+  // Handle export as Markdown
+  const handleExportMarkdown = () => {
+    const text = formatBlueprintForCopy(blueprint);
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${blueprint.title || 'blueprint'}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('📄 Blueprint exported as Markdown!', 'success');
+  };
+
+  // Handle export as JSON
+  const handleExportJSON = () => {
+    exportAsJSON(blueprint);
+  };
+
+  // Handle share
+  const handleShare = () => {
+    copyShareableLink(blueprint);
+  };
+
+  // Handle favorite toggle
+  const handleToggleFavorite = () => {
+    if (blueprintId) {
+      const isFavorite = toggleFavorite(blueprintId);
+      showToast(
+        isFavorite ? '⭐ Added to favorites!' : '⭐ Removed from favorites',
+        'success'
+      );
+      if (onRefresh) onRefresh();
+    } else {
+      showToast('💡 Save to history first to favorite!', 'info');
+    }
+  };
+
+  // Handle export as PDF (using window.print)
+  const handleExportPDF = () => {
+    showToast('🖨️ Opening print dialog...', 'info');
+    setTimeout(() => window.print(), 500);
+  };
+
   // Extract data with fallbacks
   const features = Array.isArray(blueprint.features) ? blueprint.features : [];
   const pages = Array.isArray(blueprint.pages) ? blueprint.pages : [];
@@ -47,10 +114,32 @@ function Blueprint({ blueprint, loading }) {
   const techStack = blueprint.techStack || {};
 
   return (
-    <section className="blueprint-section">
+    <section className="blueprint-section" id="blueprint-content">
       <div className="section-heading">
         <span className="step-label">04</span>
-        <h2>MVP Blueprint</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0 }}>MVP Blueprint</h2>
+          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+            <button className="copy-button" onClick={handleCopy} title="Copy to clipboard">
+              📋 Copy
+            </button>
+            <button className="copy-button" onClick={handleExportMarkdown} title="Export as Markdown">
+              📄 MD
+            </button>
+            <button className="copy-button" onClick={handleExportJSON} title="Export as JSON">
+              📊 JSON
+            </button>
+            <button className="copy-button" onClick={handleShare} title="Share blueprint">
+              🔗 Share
+            </button>
+            <button className="copy-button" onClick={handleToggleFavorite} title="Add to favorites">
+              ⭐ Favorite
+            </button>
+            <button className="copy-button" onClick={handleExportPDF} title="Export as PDF">
+              📑 PDF
+            </button>
+          </div>
+        </div>
         <p>
           Your selected solution, turned into an actionable
           product plan.
@@ -80,7 +169,7 @@ function Blueprint({ blueprint, loading }) {
               </div>
             ))
           ) : (
-            <p>No core features available.</p>
+            <p className="empty-state">No core features available.</p>
           )}
         </div>
       </div>
@@ -104,7 +193,7 @@ function Blueprint({ blueprint, loading }) {
               </div>
             ))
           ) : (
-            <p>No pages described.</p>
+            <p className="empty-state">No pages described.</p>
           )}
         </div>
       </div>
@@ -151,7 +240,7 @@ function Blueprint({ blueprint, loading }) {
                 </div>
               ))
             ) : (
-              <p>No database tables described.</p>
+              <p className="empty-state">No database tables described.</p>
             )}
           </div>
         </div>
@@ -173,7 +262,7 @@ function Blueprint({ blueprint, loading }) {
               </div>
             ))
           ) : (
-            <p>No development tasks listed.</p>
+            <p className="empty-state">No development tasks listed.</p>
           )}
         </div>
       </div>

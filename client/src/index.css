@@ -1,5 +1,11 @@
+/* ======================================== */
+/* ========== RESET & BASE ========== */
+/* ======================================== */
+
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html {
@@ -8,24 +14,317 @@ html {
 
 body {
   margin: 0;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #f5f5f5;
   font-family:
     Inter,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
     sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
-textarea {
+textarea,
+input {
   font: inherit;
 }
 
 button {
   cursor: pointer;
+}
+
+a {
+  color: #6366f1;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ======================================== */
+/* ========== DARK MODE VARIABLES ========== */
+/* ======================================== */
+
+:root {
+  /* Light Theme */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #1e293b;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+  --header-bg: rgba(255, 255, 255, 0.92);
+  --footer-bg: rgba(255, 255, 255, 0.95);
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+}
+
+.dark {
+  /* Dark Theme */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #14141f;
+  --bg-card: #1a1a2e;
+  --bg-input: #1a1a2e;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-color: #2d2d44;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --header-bg: rgba(26, 26, 46, 0.92);
+  --footer-bg: rgba(26, 26, 46, 0.95);
+  --scrollbar-track: #1a1a2e;
+  --scrollbar-thumb: #2d2d44;
+}
+
+/* ======================================== */
+/* ========== SCROLLBAR STYLING ========== */
+/* ======================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6366f1;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* ======================================== */
+/* ========== SELECTION COLOR ========== */
+/* ======================================== */
+
+::selection {
+  background-color: #6366f1;
+  color: white;
+}
+
+::-moz-selection {
+  background-color: #6366f1;
+  color: white;
+}
+
+/* ======================================== */
+/* ========== SPINNER (GLOBAL) ========== */
+/* ======================================== */
+
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s ease-in-out infinite;
+  margin-right: 10px;
+}
+
+.spinner-small {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s ease-in-out infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ======================================== */
+/* ========== PULSE DOT (GLOBAL) ========== */
+/* ======================================== */
+
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #6366f1;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ======================================== */
+/* ========== SHIMMER ANIMATION ========== */
+/* ======================================== */
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ======================================== */
+/* ========== TOAST NOTIFICATIONS ========== */
+/* ======================================== */
+
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  padding: 16px 24px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 500;
+  font-size: 0.95rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  max-width: 90%;
+  text-align: center;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast-success {
+  background-color: #10b981;
+}
+
+.toast-error {
+  background-color: #ef4444;
+}
+
+.toast-info {
+  background-color: #3b82f6;
+}
+
+/* ======================================== */
+/* ========== ERROR MESSAGE (GLOBAL) ========== */
+/* ======================================== */
+
+.error-message {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin: 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.dark .error-message {
+  background-color: #7f1d1d;
+  border-color: #991b1b;
+  color: #fecaca;
+}
+
+.error-icon {
+  font-size: 1.2rem;
+}
+
+.error-close {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  padding: 4px 8px;
+}
+
+.error-close:hover {
+  opacity: 1;
+}
+
+/* ======================================== */
+/* ========== LOADING INDICATOR ========== */
+/* ======================================== */
+
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ======================================== */
+/* ========== RESPONSIVE GLOBAL ========== */
+/* ======================================== */
+
+@media (max-width: 768px) {
+  .toast {
+    bottom: 20px;
+    padding: 14px 20px;
+    font-size: 0.85rem;
+    max-width: 95%;
+  }
+}
+
+@media (max-width: 480px) {
+  .toast {
+    bottom: 16px;
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    max-width: 98%;
+  }
 }

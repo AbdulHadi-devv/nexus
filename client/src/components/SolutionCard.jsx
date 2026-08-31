@@ -7,18 +7,30 @@ function cleanText(text) {
   // Convert to string if needed
   let cleaned = String(text);
   
-  // Remove markdown code fences (```) and backticks
+  // Remove ALL markdown code fences and backticks
   cleaned = cleaned
-    .replace(/```/g, "")
+    .replace(/```json\s*/gi, "")
+    .replace(/```javascript\s*/gi, "")
+    .replace(/```js\s*/gi, "")
+    .replace(/```\s*/g, "")
     .replace(/`/g, "")
-    .replace(/^\s*```[a-z]*\s*/gim, "")  // Remove opening fences with language
-    .replace(/\s*```\s*$/gim, "")         // Remove closing fences
+    .replace(/^```[a-z]*\s*/gim, "")  // Remove opening fences with language
+    .replace(/\s*```$/gim, "")         // Remove closing fences
+    .replace(/^\s*```\s*/gim, "")      // Remove standalone fences
     .trim();
   
-  return cleaned || "Not available";
+  // If after cleaning it's empty, return "Not available"
+  if (!cleaned) return "Not available";
+  
+  return cleaned;
 }
 
 function SolutionCard({ solution, index, onSelect }) {
+  // Safely extract data with cleanText
+  const name = cleanText(solution?.name);
+  const description = cleanText(solution?.description);
+  const difficulty = cleanText(solution?.difficulty);
+  
   const features = Array.isArray(solution?.features)
     ? solution.features.map(f => cleanText(f))
     : [];
@@ -39,14 +51,14 @@ function SolutionCard({ solution, index, onSelect }) {
         </span>
 
         <span className="difficulty-badge">
-          {cleanText(solution?.difficulty) || "Not Available"}
+          {difficulty || "Not Available"}
         </span>
       </div>
 
-      <h3>{cleanText(solution?.name) || "Untitled Solution"}</h3>
+      <h3>{name || "Untitled Solution"}</h3>
 
       <p className="solution-description">
-        {cleanText(solution?.description) || "No description available."}
+        {description || "No description available."}
       </p>
 
       <div className="solution-section">
@@ -59,7 +71,7 @@ function SolutionCard({ solution, index, onSelect }) {
             ))}
           </ul>
         ) : (
-          <p>No features available.</p>
+          <p className="empty-state">No features available.</p>
         )}
       </div>
 
@@ -74,7 +86,7 @@ function SolutionCard({ solution, index, onSelect }) {
               ))}
             </ul>
           ) : (
-            <p>No pros available.</p>
+            <p className="empty-state">No pros available.</p>
           )}
         </div>
 
@@ -88,7 +100,7 @@ function SolutionCard({ solution, index, onSelect }) {
               ))}
             </ul>
           ) : (
-            <p>No cons available.</p>
+            <p className="empty-state">No cons available.</p>
           )}
         </div>
       </div>
