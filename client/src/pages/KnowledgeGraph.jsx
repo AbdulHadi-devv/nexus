@@ -20,28 +20,23 @@ export default function KnowledgeGraph() {
   }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const itemsRes = await api.getItems();
       setItems(itemsRes.data);
-      
-      // Get all connections from items
+
       const allConnections = [];
       itemsRes.data.forEach(item => {
-        if (item.connectionsFrom) {
-          item.connectionsFrom.forEach(conn => {
-            allConnections.push(conn);
-          });
+        if (item.connectionsFrom?.length > 0) {
+          item.connectionsFrom.forEach(conn => allConnections.push(conn));
         }
-        if (item.connectionsTo) {
-          item.connectionsTo.forEach(conn => {
-            allConnections.push(conn);
-          });
+        if (item.connectionsTo?.length > 0) {
+          item.connectionsTo.forEach(conn => allConnections.push(conn));
         }
       });
+
       setConnections(allConnections);
-      
-      // Build graph after data is loaded
-      setTimeout(() => buildGraph(itemsRes.data, allConnections), 100);
+      setTimeout(() => buildGraph(itemsRes.data, allConnections), 200);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -51,195 +46,186 @@ export default function KnowledgeGraph() {
 
   const getTypeColor = (type) => {
     const colors = {
-      NOTE: '#6366f1',
-      BOOKMARK: '#f59e0b',
-      CODE: '#10b981',
-      IDEA: '#ec4899',
-      RESOURCE: '#3b82f6'
+      NOTE: '#6366f1', BOOKMARK: '#f59e0b', CODE: '#10b981',
+      IDEA: '#ec4899', RESOURCE: '#3b82f6'
     };
     return colors[type] || '#6366f1';
   };
 
   const getTypeIcon = (type) => {
     const icons = {
-      NOTE: '📝',
-      BOOKMARK: '🔗',
-      CODE: '💻',
-      IDEA: '💡',
-      RESOURCE: '📚'
+      NOTE: '📝', BOOKMARK: '🔗', CODE: '💻',
+      IDEA: '💡', RESOURCE: '📚'
     };
     return icons[type] || '📄';
   };
 
   const buildGraph = (itemsData, connectionsData) => {
     if (!containerRef.current) return;
+    containerRef.current.innerHTML = '';
 
-    const nodes = itemsData.map(item => ({
-      id: item.id,
-      label: item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title,
-      title: `${getTypeIcon(item.type)} ${item.title}\n${item.content?.substring(0, 100)}...`,
-      color: {
-        background: getTypeColor(item.type),
-        border: getTypeColor(item.type),
-        highlight: {
+    if (connectionsData.length === 0) {
+      containerRef.current.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:1.2rem;flex-direction:column;gap:12px;">
+          <span style="font-size:3rem;">🕸️</span>
+          <span>No connections yet</span>
+          <span style="font-size:0.9rem;">Connect items to see them in the graph</span>
+        </div>
+      `;
+      return;
+    }
+
+    const connectedItemIds = new Set();
+    connectionsData.forEach(conn => {
+      connectedItemIds.add(conn.fromItemId);
+      connectedItemIds.add(conn.toItemId);
+    });
+
+    const connectedItems = itemsData.filter(item => connectedItemIds.has(item.id));
+    if (connectedItems.length === 0) return;
+
+    const nodesMap = new Map();
+    connectedItems.forEach(item => {
+      nodesMap.set(item.id, {
+        id: item.id,
+        label: item.title.length > 25 ? item.title.substring(0, 25) + '...' : item.title,
+        title: `${getTypeIcon(item.type)} ${item.title}\n${item.content?.substring(0, 100)}...`,
+        color: {
           background: getTypeColor(item.type),
-          border: '#ffffff'
-        }
-      },
-      font: {
-        color: '#ffffff',
-        size: 14,
-        face: 'Inter'
-      },
-      shape: 'dot',
-      size: 20,
-      value: (item.tags?.length || 1) + 1,
-      borderWidth: 2,
-      shadow: true
-    }));
+          border: getTypeColor(item.type),
+          highlight: {
+            background: getTypeColor(item.type),
+            border: '#ffffff'
+          }
+        },
+        font: {
+          color: '#ffffff',
+          size: 14,
+          face: 'Inter',
+          strokeWidth: 2,
+          strokeColor: 'rgba(0,0,0,0.4)'
+        },
+        shape: 'dot',
+        size: 25,
+        borderWidth: 2,
+        shadow: true
+      });
+    });
 
-    const edges = connectionsData.map(conn => ({
-      id: conn.id,
-      from: conn.fromItemId,
-      to: conn.toItemId,
-      label: conn.type || 'RELATED',
-      color: {
-        color: '#94a3b8',
-        highlight: '#6366f1'
-      },
-      font: {
-        size: 10,
-        color: '#94a3b8',
-        face: 'Inter'
-      },
-      arrows: {
-        to: {
-          enabled: true,
-          scaleFactor: 0.5
-        }
-      },
-      smooth: {
-        type: 'curvedCW',
-        roundness: 0.2
-      },
-      width: 2
-    }));
+    const edgesMap = new Map();
+    connectionsData.forEach(conn => {
+      if (connectedItemIds.has(conn.fromItemId) && connectedItemIds.has(conn.toItemId)) {
+        edgesMap.set(conn.id, {
+          id: conn.id,
+          from: conn.fromItemId,
+          to: conn.toItemId,
+          label: conn.type || 'RELATED',
+          color: { color: '#94a3b8', highlight: '#6366f1' },
+          font: { size: 10, color: '#94a3b8', face: 'Inter' },
+          arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+          smooth: { type: 'curvedCW', roundness: 0.2 },
+          width: 2
+        });
+      }
+    });
 
-    const data = {
-      nodes: nodes,
-      edges: edges
-    };
+    const nodes = Array.from(nodesMap.values());
+    const edges = Array.from(edgesMap.values());
+    if (nodes.length === 0 || edges.length === 0) return;
 
     const options = {
       nodes: {
-        shape: 'dot',
-        size: 20,
+        shape: 'dot', size: 25,
         font: {
-          size: 14,
-          face: 'Inter',
-          color: '#ffffff',
-          strokeWidth: 2,
-          strokeColor: '#000000'
+          size: 14, face: 'Inter', color: '#ffffff',
+          strokeWidth: 2, strokeColor: 'rgba(0,0,0,0.4)'
         },
-        borderWidth: 2,
-        shadow: true
+        borderWidth: 2, shadow: true
       },
       edges: {
-        width: 2,
-        shadow: true,
-        smooth: {
-          type: 'curvedCW',
-          roundness: 0.2
-        },
-        arrows: {
-          to: {
-            enabled: true,
-            scaleFactor: 0.5
-          }
-        }
+        width: 2, shadow: true,
+        smooth: { type: 'curvedCW', roundness: 0.2 },
+        arrows: { to: { enabled: true, scaleFactor: 0.5 } }
       },
       physics: {
         enabled: true,
-        stabilization: {
-          iterations: 100
-        },
+        stabilization: { iterations: 150 },
         forceAtlas2Based: {
           gravitationalConstant: -50,
           centralGravity: 0.01,
-          springLength: 100,
+          springLength: 120,
           springConstant: 0.08,
           damping: 0.4
         }
       },
       interaction: {
-        hover: true,
-        tooltipDelay: 200,
-        zoomView: true,
-        dragView: true,
-        navigationButtons: true
+        hover: true, tooltipDelay: 200,
+        zoomView: true, dragView: true,
+        navigationButtons: false
       },
       layout: {
         improvedLayout: true,
-        hierarchical: {
-          enabled: false
-        }
+        hierarchical: { enabled: false }
       }
     };
 
-    const network = new Network(containerRef.current, data, options);
+    const network = new Network(containerRef.current, { nodes, edges }, options);
     networkRef.current = network;
 
-    // Click handler
     network.on('click', (params) => {
       if (params.nodes.length > 0) {
-        const nodeId = params.nodes[0];
-        const item = itemsData.find(i => i.id === nodeId);
-        if (item) {
-          setSelectedNode(item);
-        }
+        const item = connectedItems.find(i => i.id === params.nodes[0]);
+        if (item) setSelectedNode(item);
       }
     });
 
-    // Double click to open item
     network.on('doubleClick', (params) => {
       if (params.nodes.length > 0) {
-        const nodeId = params.nodes[0];
-        window.location.href = `/knowledge/item/${nodeId}`;
+        window.location.href = `/knowledge/item/${params.nodes[0]}`;
       }
     });
+
+    setTimeout(() => {
+      try { network.fit(); } catch (e) {}
+    }, 500);
   };
 
-  const handleRefresh = () => {
-    setLoading(true);
-    fetchData();
+  const handleRefresh = () => fetchData();
+
+  const togglePhysics = () => {
+    if (networkRef.current) {
+      try {
+        const physicsEnabled = networkRef.current.physics.enabled;
+        networkRef.current.setOptions({ physics: { enabled: !physicsEnabled } });
+      } catch (e) {
+        console.log('Physics toggle error:', e);
+      }
+    }
   };
 
   const getTypeIconForDisplay = (type) => {
-    const icons = {
-      NOTE: '📝',
-      BOOKMARK: '🔗',
-      CODE: '💻',
-      IDEA: '💡',
-      RESOURCE: '📚'
-    };
+    const icons = { NOTE: '📝', BOOKMARK: '🔗', CODE: '💻', IDEA: '💡', RESOURCE: '📚' };
     return icons[type] || '📄';
   };
 
-  if (loading) {
-    return (
-      <div className="knowledge-page">
-        <div className="knowledge-header">
-          <div className="knowledge-header-content">
-            <div className="knowledge-logo">NEXUS</div>
-            <div className="knowledge-header-actions">
-              <Link to="/ai-builder" className="nav-link">🤖 AI Builder</Link>
+  return (
+    <div className="knowledge-page page-transition graph-page">
+      <div className="knowledge-header">
+        <div className="knowledge-header-content">
+          <div className="knowledge-logo">NEXUS</div>
+          <div className="knowledge-header-actions">
+            <div className="nav-group">
+              <Link to="/ai-builder" className="nav-link">🤖 AI</Link>
               <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
               <span className="nav-link active">🕸️ Graph</span>
+              <Link to="/knowledge/stats" className="nav-link">📊 Stats</Link>
+              <Link to="/knowledge/tags" className="nav-link">🏷️ Tags</Link>
+            </div>
+            <div className="header-user-group">
               <span className="user-name">👤 {user?.name}</span>
               <button
                 className="theme-toggle-small"
                 onClick={toggleDarkMode}
-                aria-label="Toggle dark mode"
                 title="Toggle theme"
               >
                 {darkMode ? '☀️' : '🌙'}
@@ -247,37 +233,8 @@ export default function KnowledgeGraph() {
             </div>
           </div>
         </div>
-        <div className="loading-state" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh' }}>
-          Building your knowledge graph...
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="knowledge-page page-transition">
-      {/* Header */}
-      <div className="knowledge-header">
-        <div className="knowledge-header-content">
-          <div className="knowledge-logo">NEXUS</div>
-          <div className="knowledge-header-actions">
-            <Link to="/ai-builder" className="nav-link">🤖 AI Builder</Link>
-            <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-            <span className="nav-link active">🕸️ Graph</span>
-            <span className="user-name">👤 {user?.name}</span>
-            <button
-              className="theme-toggle-small"
-              onClick={toggleDarkMode}
-              aria-label="Toggle dark mode"
-              title="Toggle theme"
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-          </div>
-        </div>
       </div>
 
-      {/* Graph Controls */}
       <div className="graph-controls">
         <div className="graph-stats">
           <span>🧠 {items.length} Items</span>
@@ -286,27 +243,26 @@ export default function KnowledgeGraph() {
         </div>
         <div className="graph-actions">
           <button onClick={handleRefresh} className="primary-button small">🔄 Refresh</button>
-          <button onClick={() => networkRef.current?.fit()} className="primary-button small">🔍 Fit</button>
-          <button 
+          <button
             onClick={() => {
               if (networkRef.current) {
-                const physics = networkRef.current.getOptions().physics;
-                networkRef.current.setOptions({ physics: { enabled: !physics?.enabled } });
+                try { networkRef.current.fit(); } catch (e) {}
               }
-            }} 
+            }}
             className="primary-button small"
           >
+            🔍 Fit
+          </button>
+          <button onClick={togglePhysics} className="primary-button small">
             ⚡ Physics
           </button>
         </div>
       </div>
 
-      {/* Graph Container */}
-      <div className="graph-container-wrapper">
-        <div className="graph-container" ref={containerRef} />
+      <div className="graph-full-wrapper">
+        <div className="graph-container" id="graph-container" ref={containerRef} />
       </div>
 
-      {/* Selected Node Info */}
       {selectedNode && (
         <div className="graph-node-info">
           <div className="node-info-header">
@@ -326,7 +282,6 @@ export default function KnowledgeGraph() {
         </div>
       )}
 
-      {/* Legend */}
       <div className="graph-legend">
         <span className="legend-title">Legend:</span>
         <span className="legend-item" style={{ color: '#6366f1' }}>● Notes</span>

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import * as api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 
 export default function CreateItem() {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ export default function CreateItem() {
   const [tags, setTags] = useState([]);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [newTagName, setNewTagName] = useState('');
+  const [useMarkdown, setUseMarkdown] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -42,9 +44,9 @@ export default function CreateItem() {
   };
 
   const handleTagToggle = (tagId) => {
-    setSelectedTagIds(prev =>
+    setSelectedTagIds((prev) =>
       prev.includes(tagId)
-        ? prev.filter(id => id !== tagId)
+        ? prev.filter((id) => id !== tagId)
         : [...prev, tagId]
     );
   };
@@ -55,7 +57,7 @@ export default function CreateItem() {
     try {
       const response = await api.createTag({
         name: newTagName.trim(),
-        color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
+        color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
       });
       setTags([...tags, response.data]);
       setSelectedTagIds([...selectedTagIds, response.data.id]);
@@ -64,6 +66,10 @@ export default function CreateItem() {
       console.error('Failed to create tag:', error);
       setError('Failed to create tag');
     }
+  };
+
+  const toggleMarkdown = () => {
+    setUseMarkdown(!useMarkdown);
   };
 
   const handleSubmit = async (e) => {
@@ -142,15 +148,41 @@ export default function CreateItem() {
           </div>
 
           <div className="form-group">
-            <label>Content *</label>
+            <div className="markdown-toggle-wrapper">
+              <label>Content *</label>
+              <button
+                type="button"
+                className={`markdown-toggle-btn ${useMarkdown ? 'active' : ''}`}
+                onClick={toggleMarkdown}
+              >
+                {useMarkdown ? '📝 Markdown Enabled' : '📄 Plain Text'}
+              </button>
+            </div>
+            {useMarkdown && (
+              <div className="markdown-hint">
+                💡 Markdown supported: **bold**, *italic*, `code`, [links](url), # headings, - lists, {'>'} quotes
+              </div>
+            )}
             <textarea
               name="content"
               value={formData.content}
               onChange={handleChange}
               required
               rows="8"
-              placeholder="Write your knowledge content here..."
+              placeholder={
+                useMarkdown
+                  ? 'Write your knowledge content with Markdown...'
+                  : 'Write your knowledge content here...'
+              }
             />
+            {useMarkdown && formData.content && (
+              <div className="markdown-preview-wrapper">
+                <label>Preview</label>
+                <div className="markdown-preview">
+                  <MarkdownRenderer content={formData.content} />
+                </div>
+              </div>
+            )}
           </div>
 
           {formData.type === 'BOOKMARK' && (
@@ -183,16 +215,25 @@ export default function CreateItem() {
             <label>Tags</label>
             <div className="tags-input">
               <div className="existing-tags">
-                {tags.map(tag => (
+                {tags.map((tag) => (
                   <button
                     key={tag.id}
                     type="button"
                     className={`tag-select ${selectedTagIds.includes(tag.id) ? 'selected' : ''}`}
                     onClick={() => handleTagToggle(tag.id)}
-                    style={{ 
-                      backgroundColor: selectedTagIds.includes(tag.id) ? tag.color || '#6366f1' : 'transparent',
-                      color: selectedTagIds.includes(tag.id) ? 'white' : 'var(--text-secondary)',
-                      borderColor: selectedTagIds.includes(tag.id) ? tag.color || '#6366f1' : 'var(--border-color)'
+                    style={{
+                      backgroundColor: selectedTagIds.includes(tag.id)
+                        ? tag.color || '#6366f1'
+                        : 'var(--bg-primary)',
+                      color: selectedTagIds.includes(tag.id)
+                        ? '#ffffff'
+                        : 'var(--text-secondary)',
+                      borderColor: selectedTagIds.includes(tag.id)
+                        ? tag.color || '#6366f1'
+                        : 'var(--border-color)',
+                      textShadow: selectedTagIds.includes(tag.id)
+                        ? '0 1px 2px rgba(0,0,0,0.3)'
+                        : 'none',
                     }}
                   >
                     #{tag.name}
@@ -221,7 +262,9 @@ export default function CreateItem() {
           </div>
 
           <div className="form-actions">
-            <Link to="/knowledge" className="cancel-button">Cancel</Link>
+            <Link to="/knowledge" className="cancel-button">
+              Cancel
+            </Link>
             <button type="submit" disabled={loading} className="primary-button">
               {loading ? 'Creating...' : 'Create Item'}
             </button>

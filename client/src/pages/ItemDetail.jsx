@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import * as api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 
 export default function ItemDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useTheme();
+  const { showToast } = useToast();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,6 +20,13 @@ export default function ItemDetail() {
   const [showConnect, setShowConnect] = useState(false);
   const [selectedConnectItem, setSelectedConnectItem] = useState('');
   const [connectType, setConnectType] = useState('RELATED');
+  const [useMarkdown, setUseMarkdown] = useState(false);
+  const [connectError, setConnectError] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeleteConn, setConfirmDeleteConn] = useState(null);
 
   useEffect(() => {
     fetchItem();
@@ -27,6 +38,13 @@ export default function ItemDetail() {
     try {
       const response = await api.getItem(id);
       setItem(response.data);
+      const content = response.data.content || '';
+      const isMarkdown = content.startsWith('#') ||
+        content.includes('```') ||
+        content.includes('**') ||
+        (content.includes('[') && content.includes('](')) ||
+        content.includes('> ');
+      setUseMarkdown(isMarkdown);
     } catch (error) {
       setError('Failed to load item');
     } finally {
@@ -58,24 +76,43 @@ export default function ItemDetail() {
       await api.updateItem(id, item);
       setIsEditing(false);
       fetchItem();
+      showToast('Item updated successfully', 'success');
     } catch (error) {
       setError('Failed to update item');
+      showToast('Failed to update item', 'error');
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+  const handleDeleteConfirm = async () => {
     try {
       await api.deleteItem(id);
+      showToast('Item deleted successfully', 'success');
       navigate('/knowledge');
     } catch (error) {
       setError('Failed to delete item');
+      showToast('Failed to delete item', 'error');
     }
   };
 
   const handleConnect = async (e) => {
     e.preventDefault();
-    if (!selectedConnectItem) return;
+    setConnectError('');
+
+    if (!selectedConnectItem) {
+      setConnectError('Please select an item to connect to');
+      return;
+    }
+
+    if (selectedConnectItem === id) {
+      setConnectError('Cannot connect an item to itself');
+      return;
+    }
+
+    const selectedItem = allItems.find(i => i.id === selectedConnectItem);
+    if (!selectedItem) {
+      setConnectError('Selected item not found');
+      return;
+    }
 
     try {
       await api.createConnection({
@@ -84,30 +121,106 @@ export default function ItemDetail() {
         type: connectType,
       });
       setShowConnect(false);
-      fetchConnections();
       setSelectedConnectItem('');
+      setConnectType('RELATED');
+      await fetchConnections();
+      showToast('Connection created!', 'success');
     } catch (error) {
-      setError('Failed to create connection');
+      console.error('Connection error:', error);
+      setConnectError(error.response?.data?.error || 'Failed to create connection');
     }
   };
 
-  const handleDeleteConnection = async (connectionId) => {
-    if (!window.confirm('Remove this connection?')) return;
+  const handleDeleteConnection = async () => {
+    if (!confirmDeleteConn) return;
     try {
-      await api.deleteConnection(connectionId);
+      await api.deleteConnection(confirmDeleteConn);
       fetchConnections();
+      showToast('Connection removed', 'success');
     } catch (error) {
-      setError('Failed to delete connection');
+      showToast('Failed to remove connection', 'error');
+    } finally {
+      setConfirmDeleteConn(null);
     }
   };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/knowledge/item/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('🔗 Link copied to clipboard!', 'success');
+    } catch (error) {
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showToast('🔗 Link copied to clipboard!', 'success');
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    try {
+      const newState = !item.favorite;
+      await api.updateItem(id, {
+        title: item.title,
+        content: item.content,
+        type: item.type,
+        url: item.url,
+        language: item.language,
+        favorite: newState,
+        tagIds: item.tags ? item.tags.map(t => t.id) : [],
+      });
+      setItem({ ...item, favorite: newState });
+      showToast(newState ? '⭐ Added to favorites' : 'Removed from favorites', 'success');
+    } catch (error) {
+      showToast('Failed to update favorite', 'error');
+    }
+  };
+
+  const fetchSuggestions = async () => {
+    setLoadingSuggestions(true);
+    setShowSuggestions(true);
+    try {
+      const response = await api.suggestConnections(id);
+      setSuggestions(response.data.suggestions || []);
+      if (response.data.suggestions?.length === 0) {
+        showToast('No suggestions found', 'info');
+      }
+    } catch (error) {
+      console.error('Failed to fetch suggestions:', error);
+      showToast('Failed to generate suggestions', 'error');
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleAcceptSuggestion = async (suggestion) => {
+    try {
+      await api.createConnection({
+        fromItemId: id,
+        toItemId: suggestion.item.id,
+        type: 'RELATED',
+      });
+      setSuggestions(suggestions.filter(s => s.item.id !== suggestion.item.id));
+      fetchConnections();
+      showToast('Connection added!', 'success');
+    } catch (error) {
+      showToast('Failed to add connection', 'error');
+    }
+  };
+
+  const handleDismissSuggestion = (suggestionId) => {
+    setSuggestions(suggestions.filter(s => s.item.id !== suggestionId));
+  };
+
+  const toggleMarkdown = () => setUseMarkdown(!useMarkdown);
 
   const getTypeIcon = (type) => {
     const icons = {
-      NOTE: '📝',
-      BOOKMARK: '🔗',
-      CODE: '💻',
-      IDEA: '💡',
-      RESOURCE: '📚'
+      NOTE: '📝', BOOKMARK: '🔗', CODE: '💻',
+      IDEA: '💡', RESOURCE: '📚'
     };
     return icons[type] || '📄';
   };
@@ -121,22 +234,9 @@ export default function ItemDetail() {
       <div className="knowledge-header">
         <div className="knowledge-header-content">
           <div className="knowledge-logo">NEXUS</div>
-          <div className="knowledge-header-actions">
-            <Link to="/ai-builder" className="nav-link">🤖 AI Builder</Link>
-            <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-            <Link to="/knowledge/graph" className="nav-link">🕸️ Graph</Link>
-            <button
-              className="theme-toggle-small"
-              onClick={toggleDarkMode}
-              aria-label="Toggle dark mode"
-              title="Toggle theme"
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-          </div>
         </div>
       </div>
-      <div className="loading-state" style={{ padding: '60px 20px', textAlign: 'center' }}>Loading...</div>
+      <div className="loading-state">Loading...</div>
     </div>
   );
 
@@ -145,19 +245,6 @@ export default function ItemDetail() {
       <div className="knowledge-header">
         <div className="knowledge-header-content">
           <div className="knowledge-logo">NEXUS</div>
-          <div className="knowledge-header-actions">
-            <Link to="/ai-builder" className="nav-link">🤖 AI Builder</Link>
-            <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-            <Link to="/knowledge/graph" className="nav-link">🕸️ Graph</Link>
-            <button
-              className="theme-toggle-small"
-              onClick={toggleDarkMode}
-              aria-label="Toggle dark mode"
-              title="Toggle theme"
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-          </div>
         </div>
       </div>
       <div className="error-message" style={{ margin: '20px' }}>{error}</div>
@@ -166,51 +253,36 @@ export default function ItemDetail() {
 
   if (!item) return (
     <div className="knowledge-page">
-      <div className="knowledge-header">
-        <div className="knowledge-header-content">
-          <div className="knowledge-logo">NEXUS</div>
-          <div className="knowledge-header-actions">
-            <Link to="/ai-builder" className="nav-link">🤖 AI Builder</Link>
-            <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-            <Link to="/knowledge/graph" className="nav-link">🕸️ Graph</Link>
-            <button
-              className="theme-toggle-small"
-              onClick={toggleDarkMode}
-              aria-label="Toggle dark mode"
-              title="Toggle theme"
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-          </div>
-        </div>
-      </div>
       <div className="error-message" style={{ margin: '20px' }}>Item not found</div>
     </div>
   );
 
   return (
     <div className="knowledge-page page-transition">
-      {/* Header */}
       <header className="knowledge-header">
         <div className="knowledge-header-content">
           <div className="knowledge-logo">NEXUS</div>
           <div className="knowledge-header-actions">
-            <Link to="/ai-builder" className="nav-link">🤖 AI Builder</Link>
-            <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-            <Link to="/knowledge/graph" className="nav-link">🕸️ Graph</Link>
-            <button
-              className="theme-toggle-small"
-              onClick={toggleDarkMode}
-              aria-label="Toggle dark mode"
-              title="Toggle theme"
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
+            <div className="nav-group">
+              <Link to="/ai-builder" className="nav-link">🤖 AI</Link>
+              <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
+              <Link to="/knowledge/graph" className="nav-link">🕸️ Graph</Link>
+              <Link to="/knowledge/stats" className="nav-link">📊 Stats</Link>
+              <Link to="/knowledge/tags" className="nav-link">🏷️ Tags</Link>
+            </div>
+            <div className="header-user-group">
+              <button
+                className="theme-toggle-small"
+                onClick={toggleDarkMode}
+                title="Toggle theme"
+              >
+                {darkMode ? '☀️' : '🌙'}
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="item-detail-page">
         <div className="page-header">
           <Link to="/knowledge" className="back-link">← Dashboard</Link>
@@ -218,9 +290,18 @@ export default function ItemDetail() {
           <div className="header-actions">
             {!isEditing && (
               <>
+                <button
+                  onClick={handleToggleFavorite}
+                  className={`favorite-btn-large ${item.favorite ? 'active' : ''}`}
+                  title={item.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {item.favorite ? '⭐' : '☆'}
+                </button>
                 <button onClick={() => setIsEditing(true)} className="edit-button">✏️ Edit</button>
-                <button onClick={handleDelete} className="delete-button">🗑️ Delete</button>
+                <button onClick={handleShare} className="share-button">🔗 Share</button>
+                <button onClick={() => setConfirmDelete(true)} className="delete-button">🗑️ Delete</button>
                 <button onClick={() => setShowConnect(true)} className="connect-button">🔗 Connect</button>
+                <button onClick={fetchSuggestions} className="suggest-button">✨ Suggest</button>
               </>
             )}
           </div>
@@ -233,16 +314,13 @@ export default function ItemDetail() {
               <input
                 type="text"
                 value={item.title}
-                onChange={(e) => setItem({...item, title: e.target.value})}
+                onChange={(e) => setItem({ ...item, title: e.target.value })}
                 required
               />
             </div>
             <div className="form-group">
               <label>Type</label>
-              <select
-                value={item.type}
-                onChange={(e) => setItem({...item, type: e.target.value})}
-              >
+              <select value={item.type} onChange={(e) => setItem({ ...item, type: e.target.value })}>
                 <option value="NOTE">📝 Note</option>
                 <option value="BOOKMARK">🔗 Bookmark</option>
                 <option value="CODE">💻 Code Snippet</option>
@@ -251,10 +329,19 @@ export default function ItemDetail() {
               </select>
             </div>
             <div className="form-group">
-              <label>Content</label>
+              <div className="markdown-toggle-wrapper">
+                <label>Content</label>
+                <button
+                  type="button"
+                  className={`markdown-toggle-btn ${useMarkdown ? 'active' : ''}`}
+                  onClick={toggleMarkdown}
+                >
+                  {useMarkdown ? '📝 Markdown Enabled' : '📄 Plain Text'}
+                </button>
+              </div>
               <textarea
                 value={item.content}
-                onChange={(e) => setItem({...item, content: e.target.value})}
+                onChange={(e) => setItem({ ...item, content: e.target.value })}
                 rows="10"
                 required
               />
@@ -265,7 +352,7 @@ export default function ItemDetail() {
                 <input
                   type="url"
                   value={item.url || ''}
-                  onChange={(e) => setItem({...item, url: e.target.value})}
+                  onChange={(e) => setItem({ ...item, url: e.target.value })}
                 />
               </div>
             )}
@@ -275,7 +362,7 @@ export default function ItemDetail() {
                 <input
                   type="text"
                   value={item.language || ''}
-                  onChange={(e) => setItem({...item, language: e.target.value})}
+                  onChange={(e) => setItem({ ...item, language: e.target.value })}
                 />
               </div>
             )}
@@ -312,11 +399,64 @@ export default function ItemDetail() {
                 )}
               </div>
               <div className="item-content">
-                <pre>{item.content}</pre>
+                {useMarkdown ? (
+                  <MarkdownRenderer content={item.content} />
+                ) : (
+                  <pre>{item.content}</pre>
+                )}
               </div>
             </div>
 
-            {/* Backlinks Section */}
+            {showSuggestions && (
+              <div className="suggestions-panel">
+                <div className="suggestions-header">
+                  <span style={{ fontSize: '1.3rem' }}>🧩</span>
+                  <h3>AI Suggestions</h3>
+                  <button
+                    onClick={() => setShowSuggestions(false)}
+                    style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {loadingSuggestions ? (
+                  <p className="empty-state">Analyzing your knowledge base...</p>
+                ) : suggestions.length === 0 ? (
+                  <p className="empty-state">No suggestions available. You may already be well connected!</p>
+                ) : (
+                  <div>
+                    {suggestions.map((sugg) => (
+                      <div key={sugg.item.id} className="suggestion-item">
+                        <div className="suggestion-info">
+                          <div className="suggestion-title">
+                            {getTypeIcon(sugg.item.type)} {sugg.item.title}
+                          </div>
+                          <div className="suggestion-reason">
+                            {sugg.reason} · {Math.round(sugg.confidence * 100)}% confidence
+                          </div>
+                        </div>
+                        <div className="suggestion-actions">
+                          <button
+                            className="suggestion-connect-btn"
+                            onClick={() => handleAcceptSuggestion(sugg)}
+                          >
+                            + Connect
+                          </button>
+                          <button
+                            className="suggestion-dismiss-btn"
+                            onClick={() => handleDismissSuggestion(sugg.item.id)}
+                          >
+                            Skip
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="backlinks-section">
               <h3>🔗 Backlinks</h3>
               {connections.filter(c => c.toItemId === id).length === 0 ? (
@@ -341,7 +481,6 @@ export default function ItemDetail() {
               )}
             </div>
 
-            {/* Connections Section */}
             <div className="connections-section">
               <h3>🔗 Connected Knowledge</h3>
               {connections.length === 0 ? (
@@ -356,7 +495,7 @@ export default function ItemDetail() {
                           <span className="connection-type">{conn.type}</span>
                           {getTypeIcon(connectedItem.type)} {connectedItem.title}
                         </Link>
-                        <button onClick={() => handleDeleteConnection(conn.id)} className="remove-connection">
+                        <button onClick={() => setConfirmDeleteConn(conn.id)} className="remove-connection">
                           ✕
                         </button>
                       </div>
@@ -368,14 +507,28 @@ export default function ItemDetail() {
           </>
         )}
 
-        {/* Connect Modal */}
         {showConnect && (
-          <div className="modal-overlay" onClick={() => setShowConnect(false)}>
+          <div className="modal-overlay" onClick={() => {
+            setShowConnect(false);
+            setConnectError('');
+            setSelectedConnectItem('');
+          }}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <h2>Connect to Another Item</h2>
+
+              <p style={{ marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                Connecting from: <strong>{item.title}</strong>
+              </p>
+
+              {connectError && (
+                <div className="error-message" style={{ marginBottom: '16px' }}>
+                  {connectError}
+                </div>
+              )}
+
               <form onSubmit={handleConnect}>
                 <div className="form-group">
-                  <label>Select Item</label>
+                  <label>Select Item to Connect To</label>
                   <select
                     value={selectedConnectItem}
                     onChange={(e) => setSelectedConnectItem(e.target.value)}
@@ -389,6 +542,7 @@ export default function ItemDetail() {
                     ))}
                   </select>
                 </div>
+
                 <div className="form-group">
                   <label>Connection Type</label>
                   <select
@@ -402,14 +556,45 @@ export default function ItemDetail() {
                     <option value="PREREQUISITE">Prerequisite</option>
                   </select>
                 </div>
+
                 <div className="form-actions">
-                  <button type="button" onClick={() => setShowConnect(false)} className="cancel-button">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowConnect(false);
+                      setConnectError('');
+                      setSelectedConnectItem('');
+                    }}
+                    className="cancel-button"
+                  >
+                    Cancel
+                  </button>
                   <button type="submit" className="primary-button">Connect</button>
                 </div>
               </form>
             </div>
           </div>
         )}
+
+        <ConfirmDialog
+          isOpen={confirmDelete}
+          title="Delete Item?"
+          message={`Are you sure you want to delete "${item.title}"? This action cannot be undone.`}
+          confirmText="Delete"
+          icon="🗑️"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirmDelete(false)}
+        />
+
+        <ConfirmDialog
+          isOpen={!!confirmDeleteConn}
+          title="Remove Connection?"
+          message="This will remove the connection between these items."
+          confirmText="Remove"
+          icon="🔗"
+          onConfirm={handleDeleteConnection}
+          onCancel={() => setConfirmDeleteConn(null)}
+        />
       </div>
     </div>
   );

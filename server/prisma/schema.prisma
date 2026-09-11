@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String           @id @default(cuid())
+  email         String           @unique
+  password      String
+  name          String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  knowledgeItems KnowledgeItem[]
+  tags          Tag[]
+  connections   Connection[]
+}
+
+model KnowledgeItem {
+  id          String       @id @default(cuid())
+  title       String
+  content     String
+  type        String       @default("NOTE")
+  url         String?
+  language    String?
+  favorite    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        Tag[]        @relation("ItemTags")
+  connectionsFrom Connection[] @relation("FromItem")
+  connectionsTo   Connection[] @relation("ToItem")
+}
+
+model Tag {
+  id          String           @id @default(cuid())
+  name        String
+  color       String?          @default("#6366f1")
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       KnowledgeItem[]  @relation("ItemTags")
+  createdAt   DateTime         @default(now())
+  
+  @@unique([name, userId])
+}
+
+model Connection {
+  id          String           @id @default(cuid())
+  fromItemId  String
+  fromItem    KnowledgeItem    @relation("FromItem", fields: [fromItemId], references: [id], onDelete: Cascade)
+  toItemId    String
+  toItem      KnowledgeItem    @relation("ToItem", fields: [toItemId], references: [id], onDelete: Cascade)
+  type        String           @default("RELATED")
+  createdAt   DateTime         @default(now())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([fromItemId, toItemId])
+}

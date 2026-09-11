@@ -14,9 +14,12 @@ export function AuthProvider({ children }) {
         .then(response => {
           setUser(response.data.user);
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Auth check failed:', error);
+          // Token is invalid - clear it
           localStorage.removeItem('token');
           setToken(null);
+          setUser(null);
         })
         .finally(() => setLoading(false));
     } else {
