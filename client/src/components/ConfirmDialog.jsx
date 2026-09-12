@@ -1,3 +1,5 @@
+import { AlertTriangle } from 'lucide-react';
+
 export default function ConfirmDialog({ 
   isOpen, 
   title = 'Are you sure?', 
@@ -14,7 +16,13 @@ export default function ConfirmDialog({
   return (
     <div className="confirm-modal-overlay" onClick={onCancel}>
       <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="confirm-icon">{icon}</div>
+        <div className="confirm-icon">
+          {typeof icon === 'string' ? (
+            <span style={{ fontSize: '3rem' }}>{icon}</span>
+          ) : (
+            <AlertTriangle size={48} />
+          )}
+        </div>
         <h3 className="confirm-title">{title}</h3>
         <p className="confirm-message">{message}</p>
         <div className="confirm-actions">

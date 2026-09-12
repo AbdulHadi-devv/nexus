@@ -334,7 +334,6 @@ app.post('/api/tags', authenticate, async (req, res) => {
 
     const trimmedName = name.trim();
 
-    // Check for duplicate tag name
     const existing = await prisma.tag.findFirst({
       where: { name: trimmedName, userId: req.user.id },
     });
@@ -389,7 +388,6 @@ app.put('/api/tags/:id', authenticate, async (req, res) => {
 
     const trimmedName = name ? name.trim() : existingTag.name;
 
-    // Check for name conflict
     if (trimmedName !== existingTag.name) {
       const conflicting = await prisma.tag.findFirst({
         where: {
@@ -422,6 +420,9 @@ app.put('/api/tags/:id', authenticate, async (req, res) => {
   }
 });
 
+// ========================================
+// MERGE TAGS (FIXED)
+// ========================================
 app.post('/api/tags/:id/merge', authenticate, async (req, res) => {
   try {
     const sourceTagId = req.params.id;
@@ -448,53 +449,38 @@ app.post('/api/tags/:id/merge', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'One or both tags not found' });
     }
 
-    // Use a transaction to safely move items
-    const result = await prisma.$transaction(async (tx) => {
-      // Get all items with source tag
-      const itemsWithSource = await tx.knowledgeItem.findMany({
-        where: {
-          userId: req.user.id,
-          tags: { some: { id: sourceTagId } },
+    // Get all items with the source tag
+    const itemsWithSource = await prisma.knowledgeItem.findMany({
+      where: {
+        userId: req.user.id,
+        tags: { some: { id: sourceTagId } },
+      },
+      select: { id: true },
+    });
+
+    // For each item: disconnect source tag, connect target tag
+    // Prisma's update() (single record) supports relation operations
+    for (const item of itemsWithSource) {
+      await prisma.knowledgeItem.update({
+        where: { id: item.id },
+        data: {
+          tags: {
+            disconnect: { id: sourceTagId },
+            connect: { id: targetTagId },
+          },
         },
-        select: { id: true },
       });
+    }
 
-      const itemIds = itemsWithSource.map(i => i.id);
-
-      // Disconnect source tag from all items
-      if (itemIds.length > 0) {
-        await tx.knowledgeItem.updateMany({
-          where: { id: { in: itemIds } },
-          data: {
-            tags: {
-              disconnect: { id: sourceTagId },
-            },
-          },
-        });
-
-        // Connect target tag to those items
-        await tx.knowledgeItem.updateMany({
-          where: { id: { in: itemIds } },
-          data: {
-            tags: {
-              connect: { id: targetTagId },
-            },
-          },
-        });
-      }
-
-      // Delete the source tag
-      await tx.tag.delete({
-        where: { id: sourceTagId },
-      });
-
-      return { itemsMerged: itemIds.length };
+    // Delete the source tag
+    await prisma.tag.delete({
+      where: { id: sourceTagId },
     });
 
     res.json({
       success: true,
-      message: `Merged ${result.itemsMerged} item(s) into #${targetTag.name}`,
-      itemsMerged: result.itemsMerged,
+      message: `Merged ${itemsWithSource.length} item(s) into #${targetTag.name}`,
+      itemsMerged: itemsWithSource.length,
       sourceTagName: sourceTag.name,
       targetTagName: targetTag.name,
     });

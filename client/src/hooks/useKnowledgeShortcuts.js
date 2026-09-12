@@ -12,45 +12,36 @@ export function useKnowledgeShortcuts({
     const handleKeyDown = (e) => {
       const target = e.target;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        // Allow Escape to blur input
-        if (e.key === 'Escape') {
-          target.blur();
-        }
+        if (e.key === 'Escape') target.blur();
         return;
       }
 
-      // Ctrl/Cmd + N: New Item
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault();
-        if (onCreate) onCreate();
-      }
-
-      // Ctrl/Cmd + K: Search
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         if (onSearch) onSearch();
       }
 
-      // Ctrl/Cmd + D: Dashboard
-      if ((e.ctrlKey || e.metaKey) && e.key === 'd' && !e.shiftKey) {
-        e.preventDefault();
-        if (onDashboard) onDashboard();
-      }
-
-      // Ctrl/Cmd + G: Graph
-      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-        e.preventDefault();
-        if (onGraph) onGraph();
-      }
-
-      // Ctrl/Cmd + Shift + D: Toggle Theme
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         if (onToggleTheme) onToggleTheme();
       }
 
-      // Ctrl/Cmd + Shift + L: Logout
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'L') {
+      if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        if (onCreate) onCreate();
+      }
+
+      if (e.altKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (onGraph) onGraph();
+      }
+
+      if (e.altKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        if (onDashboard) onDashboard();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault();
         if (onLogout) onLogout();
       }

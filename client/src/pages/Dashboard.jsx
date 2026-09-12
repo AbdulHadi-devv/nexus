@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  Brain, BookOpen, Network, BarChart3, Tags, Bot, Sun, Moon, LogOut,
+  FileText, Link2, Code2, Lightbulb, Library,
+  Plus, Search, X, Star, Download, Upload, Trash2, BookMarked, ArrowRight,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
@@ -7,8 +12,17 @@ import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackToTop from '../components/BackToTop';
 import ImportModal from '../components/ImportModal';
+import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
 import { ItemGridSkeleton, StatCardSkeleton } from '../components/Skeletons';
 import * as api from '../services/api';
+
+const ITEM_ICONS = {
+  NOTE: FileText,
+  BOOKMARK: Link2,
+  CODE: Code2,
+  IDEA: Lightbulb,
+  RESOURCE: Library,
+};
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -86,7 +100,7 @@ export default function Dashboard() {
       if (searchResults) {
         setSearchResults({
           ...searchResults,
-          items: searchResults.items.filter(item => item.id !== confirmState.itemId)
+          items: searchResults.items.filter(item => item.id !== confirmState.itemId),
         });
       }
       showToast('Item deleted successfully', 'success');
@@ -120,7 +134,7 @@ export default function Dashboard() {
       });
 
       showToast(
-        newFavoriteState ? '⭐ Added to favorites' : 'Removed from favorites',
+        newFavoriteState ? 'Added to favorites' : 'Removed from favorites',
         'success'
       );
     } catch (error) {
@@ -170,15 +184,9 @@ export default function Dashboard() {
     }
   };
 
-  const getTypeIcon = (type) => {
-    const icons = {
-      NOTE: '📝',
-      BOOKMARK: '🔗',
-      CODE: '💻',
-      IDEA: '💡',
-      RESOURCE: '📚'
-    };
-    return icons[type] || '📄';
+  const getTypeIcon = (type, size = 14) => {
+    const Icon = ITEM_ICONS[type] || FileText;
+    return <Icon size={size} strokeWidth={2.2} />;
   };
 
   const getDisplayItems = () => {
@@ -208,6 +216,15 @@ export default function Dashboard() {
   const totalTags = new Set(items.flatMap(i => i.tags?.map(t => t.id) || [])).size;
   const favoriteCount = items.filter(i => i.favorite).length;
 
+  const statCards = [
+    { icon: BookMarked, value: totalItems, label: 'Total Items' },
+    { icon: Network, value: totalConnections, label: 'Connections' },
+    { icon: Tags, value: totalTags, label: 'Tags' },
+    { icon: Star, value: favoriteCount, label: 'Favorites' },
+    { icon: FileText, value: items.filter(i => i.type === 'NOTE').length, label: 'Notes' },
+    { icon: Code2, value: items.filter(i => i.type === 'CODE').length, label: 'Code' },
+  ];
+
   return (
     <div className="knowledge-page page-transition">
       {/* Header */}
@@ -217,45 +234,39 @@ export default function Dashboard() {
           <div className="knowledge-header-actions">
             <div className="nav-group">
               <Link to="/ai-builder" className="nav-link" title="AI Product Builder">
-                🤖 AI
+                <Bot size={16} /> AI
               </Link>
               <span className="nav-link active" title="Knowledge Dashboard">
-                📚 Dashboard
+                <BookOpen size={16} /> Dashboard
               </span>
               <Link to="/knowledge/graph" className="nav-link" title="Knowledge Graph">
-                🕸️ Graph
+                <Network size={16} /> Graph
               </Link>
               <Link to="/knowledge/stats" className="nav-link" title="Statistics">
-                📊 Stats
+                <BarChart3 size={16} /> Stats
               </Link>
               <Link to="/knowledge/tags" className="nav-link" title="Tag Manager">
-                🏷️ Tags
+                <Tags size={16} /> Tags
               </Link>
             </div>
             <div className="header-user-group">
               <span className="user-name" title={user?.name}>
                 👤 {user?.name}
               </span>
-              <Link
-                to="/knowledge/create"
-                className="primary-button small"
-                title="Create new item (Ctrl+N)"
-              >
-                + New
-              </Link>
+              <HeaderShortcutsButton />
               <button
                 className="theme-toggle-small"
                 onClick={toggleDarkMode}
-                title="Toggle theme (Ctrl+Shift+D)"
+                title="Toggle theme"
               >
-                {darkMode ? '☀️' : '🌙'}
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               <button
                 onClick={handleLogout}
                 className="logout-button"
                 title="Logout"
               >
-                🚪
+                <LogOut size={18} />
               </button>
             </div>
           </div>
@@ -268,95 +279,91 @@ export default function Dashboard() {
           <StatCardSkeleton count={6} />
         ) : (
           <div className="knowledge-stats">
-            <div className="stat-card">
-              <span className="stat-icon">📚</span>
-              <div className="stat-info">
-                <span className="stat-number">{totalItems}</span>
-                <span className="stat-label">Total Items</span>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon">🔗</span>
-              <div className="stat-info">
-                <span className="stat-number">{totalConnections}</span>
-                <span className="stat-label">Connections</span>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon">🏷️</span>
-              <div className="stat-info">
-                <span className="stat-number">{totalTags}</span>
-                <span className="stat-label">Tags</span>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon">⭐</span>
-              <div className="stat-info">
-                <span className="stat-number">{favoriteCount}</span>
-                <span className="stat-label">Favorites</span>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon">📝</span>
-              <div className="stat-info">
-                <span className="stat-number">{items.filter(i => i.type === 'NOTE').length}</span>
-                <span className="stat-label">Notes</span>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon">💻</span>
-              <div className="stat-info">
-                <span className="stat-number">{items.filter(i => i.type === 'CODE').length}</span>
-                <span className="stat-label">Code</span>
-              </div>
-            </div>
+            {statCards.map((stat, i) => {
+              const Icon = stat.icon;
+              return (
+                <div key={i} className="stat-card">
+                  <span className="stat-icon">
+                    <Icon size={22} strokeWidth={2} />
+                  </span>
+                  <div className="stat-info">
+                    <span className="stat-number">{stat.value}</span>
+                    <span className="stat-label">{stat.label}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Actions */}
-        <div className="dashboard-actions">
-          <button
-            className={`filter-button ${showFavoritesOnly ? 'active' : ''}`}
-            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-            title="Show only favorites"
+        {/* Primary CTA + Tools */}
+        <div className="dashboard-actions-bar">
+          <Link
+            to="/knowledge/create"
+            className="new-item-cta"
+            title="Create new item (Alt+N)"
           >
-            ⭐ Favorites ({favoriteCount})
-          </button>
-          <button
-            className="filter-button"
-            onClick={handleExport}
-            title="Export all knowledge as JSON backup"
-          >
-            📥 Export
-          </button>
-          <button
-            className="filter-button"
-            onClick={() => setShowImportModal(true)}
-            title="Import from JSON backup"
-          >
-            📤 Import
-          </button>
+            <div className="new-item-cta-icon">
+              <Plus size={22} strokeWidth={2.5} />
+            </div>
+            <div className="new-item-cta-text">
+              <span className="new-item-cta-title">Create New Item</span>
+              <span className="new-item-cta-subtitle">
+                Add a note, bookmark, code snippet, idea, or resource
+              </span>
+            </div>
+            <ArrowRight size={20} className="new-item-cta-arrow" />
+          </Link>
+
+          <div className="dashboard-tools">
+            <button
+              className={`filter-button ${showFavoritesOnly ? 'active' : ''}`}
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              title="Show only favorites"
+            >
+              <Star size={14} /> Favorites ({favoriteCount})
+            </button>
+            <button
+              className="filter-button"
+              onClick={handleExport}
+              title="Export all knowledge as JSON backup"
+            >
+              <Download size={14} /> Export
+            </button>
+            <button
+              className="filter-button"
+              onClick={() => setShowImportModal(true)}
+              title="Import from JSON backup"
+            >
+              <Upload size={14} /> Import
+            </button>
+          </div>
         </div>
 
         {/* Search */}
         <div className="search-section">
           <form onSubmit={handleSearch} className="search-form">
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search your knowledge... (Ctrl+K)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-            <button type="submit" className="search-button">🔍 Search</button>
+            <div className="search-input-wrapper">
+              <Search size={18} className="search-icon-inside" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search your knowledge... (Ctrl+K)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            <button type="submit" className="search-button">
+              <Search size={16} /> Search
+            </button>
             {searchResults && (
               <button
                 type="button"
                 onClick={() => { setSearchResults(null); setSearchQuery(''); }}
                 className="clear-search"
               >
-                ✕ Clear
+                <X size={16} /> Clear
               </button>
             )}
           </form>
@@ -374,31 +381,31 @@ export default function Dashboard() {
             className={filterType === 'NOTE' ? 'active' : ''}
             onClick={() => setFilterType('NOTE')}
           >
-            📝 Notes ({items.filter(i => i.type === 'NOTE').length})
+            <FileText size={14} /> Notes ({items.filter(i => i.type === 'NOTE').length})
           </button>
           <button
             className={filterType === 'BOOKMARK' ? 'active' : ''}
             onClick={() => setFilterType('BOOKMARK')}
           >
-            🔗 Bookmarks ({items.filter(i => i.type === 'BOOKMARK').length})
+            <Link2 size={14} /> Bookmarks ({items.filter(i => i.type === 'BOOKMARK').length})
           </button>
           <button
             className={filterType === 'CODE' ? 'active' : ''}
             onClick={() => setFilterType('CODE')}
           >
-            💻 Code ({items.filter(i => i.type === 'CODE').length})
+            <Code2 size={14} /> Code ({items.filter(i => i.type === 'CODE').length})
           </button>
           <button
             className={filterType === 'IDEA' ? 'active' : ''}
             onClick={() => setFilterType('IDEA')}
           >
-            💡 Ideas ({items.filter(i => i.type === 'IDEA').length})
+            <Lightbulb size={14} /> Ideas ({items.filter(i => i.type === 'IDEA').length})
           </button>
           <button
             className={filterType === 'RESOURCE' ? 'active' : ''}
             onClick={() => setFilterType('RESOURCE')}
           >
-            📚 Resources ({items.filter(i => i.type === 'RESOURCE').length})
+            <Library size={14} /> Resources ({items.filter(i => i.type === 'RESOURCE').length})
           </button>
         </div>
 
@@ -419,7 +426,11 @@ export default function Dashboard() {
                 <div className="empty-state-container">
                   <div className="empty-state">
                     <div className="empty-icon">
-                      {showFavoritesOnly ? '⭐' : '🧠'}
+                      {showFavoritesOnly ? (
+                        <Star size={64} strokeWidth={1.5} />
+                      ) : (
+                        <Brain size={64} strokeWidth={1.5} />
+                      )}
                     </div>
                     <h3>
                       {showFavoritesOnly
@@ -433,16 +444,19 @@ export default function Dashboard() {
                     </p>
                     {!showFavoritesOnly && (
                       <Link to="/knowledge/create" className="primary-button">
-                        + Create Your First Item
+                        <Plus size={16} /> Create Your First Item
                       </Link>
                     )}
                   </div>
                 </div>
               ) : (
                 displayItems.map((item) => (
-                  <div key={item.id} className={`item-card ${item.favorite ? 'favorite' : ''}`}>
+                  <div
+                    key={item.id}
+                    className={`item-card ${item.favorite ? 'favorite' : ''}`}
+                  >
                     <div className="item-card-header">
-                      <span className="item-type">
+                      <span className={`item-type item-type-${item.type.toLowerCase()}`}>
                         {getTypeIcon(item.type)} {item.type}
                       </span>
                       <div className="item-actions">
@@ -451,21 +465,24 @@ export default function Dashboard() {
                           onClick={(e) => handleToggleFavorite(item, e)}
                           title={item.favorite ? 'Remove from favorites' : 'Add to favorites'}
                         >
-                          {item.favorite ? '⭐' : '☆'}
+                          <Star
+                            size={16}
+                            fill={item.favorite ? 'currentColor' : 'none'}
+                          />
                         </button>
                         <Link
                           to={`/knowledge/item/${item.id}`}
                           className="item-action-link"
                           title="View details"
                         >
-                          📖
+                          <BookOpen size={16} />
                         </Link>
                         <button
                           onClick={() => handleDeleteClick(item)}
                           className="item-action-delete"
                           title="Delete item"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
@@ -490,7 +507,11 @@ export default function Dashboard() {
                       )}
                       <div className="item-meta">
                         <span>Updated: {new Date(item.updatedAt).toLocaleDateString()}</span>
-                        {item.url && <span className="item-url">🔗 {item.url}</span>}
+                        {item.url && (
+                          <span className="item-url">
+                            <Link2 size={12} /> {item.url}
+                          </span>
+                        )}
                       </div>
                     </Link>
                   </div>
@@ -508,7 +529,6 @@ export default function Dashboard() {
         title="Delete Item?"
         message={`Are you sure you want to delete "${confirmState.itemTitle}"? This action cannot be undone.`}
         confirmText="Delete"
-        icon="🗑️"
         onConfirm={confirmDelete}
         onCancel={() => setConfirmState({ isOpen: false, itemId: null, itemTitle: '' })}
       />

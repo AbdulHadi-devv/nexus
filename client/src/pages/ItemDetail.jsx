@@ -1,16 +1,41 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  Bot, BookOpen, Network, BarChart3, Tags as TagsIcon, Sun, Moon,
+  FileText, Link2, Code2, Lightbulb, Library,
+  Edit3, Trash2, Share2, Star, Plus, X, AlertTriangle, Sparkles,
+  Save, ArrowLeft, Link as LinkIcon,
+} from 'lucide-react';
 import * as api from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MarkdownRenderer from '../components/MarkdownRenderer';
+import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
+
+const ITEM_ICONS = {
+  NOTE: FileText,
+  BOOKMARK: Link2,
+  CODE: Code2,
+  IDEA: Lightbulb,
+  RESOURCE: Library,
+};
 
 export default function ItemDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useTheme();
   const { showToast } = useToast();
+
+  useKnowledgeShortcuts({
+    onCreate: () => navigate('/knowledge/create'),
+    onSearch: () => navigate('/knowledge'),
+    onDashboard: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+    onGraph: () => navigate('/knowledge/graph'),
+    onToggleTheme: toggleDarkMode,
+  });
+
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,7 +64,8 @@ export default function ItemDetail() {
       const response = await api.getItem(id);
       setItem(response.data);
       const content = response.data.content || '';
-      const isMarkdown = content.startsWith('#') ||
+      const isMarkdown =
+        content.startsWith('#') ||
         content.includes('```') ||
         content.includes('**') ||
         (content.includes('[') && content.includes('](')) ||
@@ -64,7 +90,7 @@ export default function ItemDetail() {
   const fetchAllItems = async () => {
     try {
       const response = await api.getItems();
-      setAllItems(response.data.filter(i => i.id !== id));
+      setAllItems(response.data.filter((i) => i.id !== id));
     } catch (error) {
       console.error('Failed to fetch items:', error);
     }
@@ -108,7 +134,7 @@ export default function ItemDetail() {
       return;
     }
 
-    const selectedItem = allItems.find(i => i.id === selectedConnectItem);
+    const selectedItem = allItems.find((i) => i.id === selectedConnectItem);
     if (!selectedItem) {
       setConnectError('Selected item not found');
       return;
@@ -127,7 +153,9 @@ export default function ItemDetail() {
       showToast('Connection created!', 'success');
     } catch (error) {
       console.error('Connection error:', error);
-      setConnectError(error.response?.data?.error || 'Failed to create connection');
+      setConnectError(
+        error.response?.data?.error || 'Failed to create connection'
+      );
     }
   };
 
@@ -148,7 +176,7 @@ export default function ItemDetail() {
     const url = `${window.location.origin}/knowledge/item/${id}`;
     try {
       await navigator.clipboard.writeText(url);
-      showToast('🔗 Link copied to clipboard!', 'success');
+      showToast('Link copied to clipboard!', 'success');
     } catch (error) {
       const textarea = document.createElement('textarea');
       textarea.value = url;
@@ -156,7 +184,7 @@ export default function ItemDetail() {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      showToast('🔗 Link copied to clipboard!', 'success');
+      showToast('Link copied to clipboard!', 'success');
     }
   };
 
@@ -170,10 +198,13 @@ export default function ItemDetail() {
         url: item.url,
         language: item.language,
         favorite: newState,
-        tagIds: item.tags ? item.tags.map(t => t.id) : [],
+        tagIds: item.tags ? item.tags.map((t) => t.id) : [],
       });
       setItem({ ...item, favorite: newState });
-      showToast(newState ? '⭐ Added to favorites' : 'Removed from favorites', 'success');
+      showToast(
+        newState ? 'Added to favorites' : 'Removed from favorites',
+        'success'
+      );
     } catch (error) {
       showToast('Failed to update favorite', 'error');
     }
@@ -203,7 +234,7 @@ export default function ItemDetail() {
         toItemId: suggestion.item.id,
         type: 'RELATED',
       });
-      setSuggestions(suggestions.filter(s => s.item.id !== suggestion.item.id));
+      setSuggestions(suggestions.filter((s) => s.item.id !== suggestion.item.id));
       fetchConnections();
       showToast('Connection added!', 'success');
     } catch (error) {
@@ -212,50 +243,56 @@ export default function ItemDetail() {
   };
 
   const handleDismissSuggestion = (suggestionId) => {
-    setSuggestions(suggestions.filter(s => s.item.id !== suggestionId));
+    setSuggestions(suggestions.filter((s) => s.item.id !== suggestionId));
   };
 
   const toggleMarkdown = () => setUseMarkdown(!useMarkdown);
 
-  const getTypeIcon = (type) => {
-    const icons = {
-      NOTE: '📝', BOOKMARK: '🔗', CODE: '💻',
-      IDEA: '💡', RESOURCE: '📚'
-    };
-    return icons[type] || '📄';
+  const getTypeIcon = (type, size = 14) => {
+    const Icon = ITEM_ICONS[type] || FileText;
+    return <Icon size={size} strokeWidth={2.2} />;
   };
 
   const getConnectedItem = (connection) => {
-    return connection.fromItemId === id ? connection.toItem : connection.fromItem;
+    return connection.fromItemId === id
+      ? connection.toItem
+      : connection.fromItem;
   };
 
-  if (loading) return (
-    <div className="knowledge-page">
-      <div className="knowledge-header">
-        <div className="knowledge-header-content">
-          <div className="knowledge-logo">NEXUS</div>
+  if (loading)
+    return (
+      <div className="knowledge-page">
+        <div className="knowledge-header">
+          <div className="knowledge-header-content">
+            <div className="knowledge-logo">NEXUS</div>
+          </div>
+        </div>
+        <div className="loading-state">Loading...</div>
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="knowledge-page">
+        <div className="knowledge-header">
+          <div className="knowledge-header-content">
+            <div className="knowledge-logo">NEXUS</div>
+          </div>
+        </div>
+        <div className="error-message" style={{ margin: '20px' }}>
+          <AlertTriangle size={20} /> {error}
         </div>
       </div>
-      <div className="loading-state">Loading...</div>
-    </div>
-  );
+    );
 
-  if (error) return (
-    <div className="knowledge-page">
-      <div className="knowledge-header">
-        <div className="knowledge-header-content">
-          <div className="knowledge-logo">NEXUS</div>
+  if (!item)
+    return (
+      <div className="knowledge-page">
+        <div className="error-message" style={{ margin: '20px' }}>
+          Item not found
         </div>
       </div>
-      <div className="error-message" style={{ margin: '20px' }}>{error}</div>
-    </div>
-  );
-
-  if (!item) return (
-    <div className="knowledge-page">
-      <div className="error-message" style={{ margin: '20px' }}>Item not found</div>
-    </div>
-  );
+    );
 
   return (
     <div className="knowledge-page page-transition">
@@ -264,19 +301,30 @@ export default function ItemDetail() {
           <div className="knowledge-logo">NEXUS</div>
           <div className="knowledge-header-actions">
             <div className="nav-group">
-              <Link to="/ai-builder" className="nav-link">🤖 AI</Link>
-              <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-              <Link to="/knowledge/graph" className="nav-link">🕸️ Graph</Link>
-              <Link to="/knowledge/stats" className="nav-link">📊 Stats</Link>
-              <Link to="/knowledge/tags" className="nav-link">🏷️ Tags</Link>
+              <Link to="/ai-builder" className="nav-link" title="AI Product Builder">
+                <Bot size={16} /> AI
+              </Link>
+              <Link to="/knowledge" className="nav-link" title="Knowledge Dashboard">
+                <BookOpen size={16} /> Dashboard
+              </Link>
+              <Link to="/knowledge/graph" className="nav-link" title="Knowledge Graph">
+                <Network size={16} /> Graph
+              </Link>
+              <Link to="/knowledge/stats" className="nav-link" title="Statistics">
+                <BarChart3 size={16} /> Stats
+              </Link>
+              <Link to="/knowledge/tags" className="nav-link" title="Tag Manager">
+                <TagsIcon size={16} /> Tags
+              </Link>
             </div>
             <div className="header-user-group">
+              <HeaderShortcutsButton />
               <button
                 className="theme-toggle-small"
                 onClick={toggleDarkMode}
                 title="Toggle theme"
               >
-                {darkMode ? '☀️' : '🌙'}
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
           </div>
@@ -285,7 +333,9 @@ export default function ItemDetail() {
 
       <div className="item-detail-page">
         <div className="page-header">
-          <Link to="/knowledge" className="back-link">← Dashboard</Link>
+          <Link to="/knowledge" className="back-link">
+            <ArrowLeft size={16} /> Dashboard
+          </Link>
           <h1>{isEditing ? 'Edit Item' : item.title}</h1>
           <div className="header-actions">
             {!isEditing && (
@@ -295,13 +345,23 @@ export default function ItemDetail() {
                   className={`favorite-btn-large ${item.favorite ? 'active' : ''}`}
                   title={item.favorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
-                  {item.favorite ? '⭐' : '☆'}
+                  <Star size={18} fill={item.favorite ? 'currentColor' : 'none'} />
                 </button>
-                <button onClick={() => setIsEditing(true)} className="edit-button">✏️ Edit</button>
-                <button onClick={handleShare} className="share-button">🔗 Share</button>
-                <button onClick={() => setConfirmDelete(true)} className="delete-button">🗑️ Delete</button>
-                <button onClick={() => setShowConnect(true)} className="connect-button">🔗 Connect</button>
-                <button onClick={fetchSuggestions} className="suggest-button">✨ Suggest</button>
+                <button onClick={() => setIsEditing(true)} className="edit-button">
+                  <Edit3 size={14} /> Edit
+                </button>
+                <button onClick={handleShare} className="share-button">
+                  <Share2 size={14} /> Share
+                </button>
+                <button onClick={() => setConfirmDelete(true)} className="delete-button">
+                  <Trash2 size={14} /> Delete
+                </button>
+                <button onClick={() => setShowConnect(true)} className="connect-button">
+                  <LinkIcon size={14} /> Connect
+                </button>
+                <button onClick={fetchSuggestions} className="suggest-button">
+                  <Sparkles size={14} /> Suggest
+                </button>
               </>
             )}
           </div>
@@ -320,12 +380,15 @@ export default function ItemDetail() {
             </div>
             <div className="form-group">
               <label>Type</label>
-              <select value={item.type} onChange={(e) => setItem({ ...item, type: e.target.value })}>
-                <option value="NOTE">📝 Note</option>
-                <option value="BOOKMARK">🔗 Bookmark</option>
-                <option value="CODE">💻 Code Snippet</option>
-                <option value="IDEA">💡 Idea</option>
-                <option value="RESOURCE">📚 Resource</option>
+              <select
+                value={item.type}
+                onChange={(e) => setItem({ ...item, type: e.target.value })}
+              >
+                <option value="NOTE">Note</option>
+                <option value="BOOKMARK">Bookmark</option>
+                <option value="CODE">Code Snippet</option>
+                <option value="IDEA">Idea</option>
+                <option value="RESOURCE">Resource</option>
               </select>
             </div>
             <div className="form-group">
@@ -336,7 +399,8 @@ export default function ItemDetail() {
                   className={`markdown-toggle-btn ${useMarkdown ? 'active' : ''}`}
                   onClick={toggleMarkdown}
                 >
-                  {useMarkdown ? '📝 Markdown Enabled' : '📄 Plain Text'}
+                  <FileText size={14} />
+                  {useMarkdown ? ' Markdown Enabled' : ' Plain Text'}
                 </button>
               </div>
               <textarea
@@ -367,19 +431,35 @@ export default function ItemDetail() {
               </div>
             )}
             <div className="form-actions">
-              <button type="button" onClick={() => setIsEditing(false)} className="cancel-button">Cancel</button>
-              <button type="submit" className="primary-button">Save Changes</button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="cancel-button"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="primary-button">
+                <Save size={16} /> Save Changes
+              </button>
             </div>
           </form>
         ) : (
           <>
             <div className="item-detail-content">
               <div className="item-meta-detail">
-                <span className="item-type-badge">{getTypeIcon(item.type)} {item.type}</span>
+                <span
+                  className={`item-type-badge item-type-${item.type.toLowerCase()}`}
+                >
+                  {getTypeIcon(item.type, 14)} {item.type}
+                </span>
                 {item.tags && item.tags.length > 0 && (
                   <div className="item-tags-detail">
-                    {item.tags.map(tag => (
-                      <span key={tag.id} className="tag" style={{ backgroundColor: tag.color || '#6366f1' }}>
+                    {item.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="tag"
+                        style={{ backgroundColor: tag.color || '#6366f1' }}
+                      >
                         #{tag.name}
                       </span>
                     ))}
@@ -391,11 +471,16 @@ export default function ItemDetail() {
                 </div>
                 {item.url && (
                   <div className="item-url-detail">
-                    🔗 <a href={item.url} target="_blank" rel="noopener noreferrer">{item.url}</a>
+                    <Link2 size={14} />{' '}
+                    <a href={item.url} target="_blank" rel="noopener noreferrer">
+                      {item.url}
+                    </a>
                   </div>
                 )}
                 {item.language && (
-                  <div className="item-language">💻 Language: {item.language}</div>
+                  <div className="item-language">
+                    <Code2 size={14} /> Language: {item.language}
+                  </div>
                 )}
               </div>
               <div className="item-content">
@@ -410,20 +495,28 @@ export default function ItemDetail() {
             {showSuggestions && (
               <div className="suggestions-panel">
                 <div className="suggestions-header">
-                  <span style={{ fontSize: '1.3rem' }}>🧩</span>
+                  <Sparkles size={20} />
                   <h3>AI Suggestions</h3>
                   <button
                     onClick={() => setShowSuggestions(false)}
-                    style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem' }}
+                    style={{
+                      marginLeft: 'auto',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                    }}
                   >
-                    ✕
+                    <X size={20} />
                   </button>
                 </div>
 
                 {loadingSuggestions ? (
                   <p className="empty-state">Analyzing your knowledge base...</p>
                 ) : suggestions.length === 0 ? (
-                  <p className="empty-state">No suggestions available. You may already be well connected!</p>
+                  <p className="empty-state">
+                    No suggestions available. You may already be well connected!
+                  </p>
                 ) : (
                   <div>
                     {suggestions.map((sugg) => (
@@ -433,7 +526,8 @@ export default function ItemDetail() {
                             {getTypeIcon(sugg.item.type)} {sugg.item.title}
                           </div>
                           <div className="suggestion-reason">
-                            {sugg.reason} · {Math.round(sugg.confidence * 100)}% confidence
+                            {sugg.reason} ·{' '}
+                            {Math.round(sugg.confidence * 100)}% confidence
                           </div>
                         </div>
                         <div className="suggestion-actions">
@@ -441,7 +535,7 @@ export default function ItemDetail() {
                             className="suggestion-connect-btn"
                             onClick={() => handleAcceptSuggestion(sugg)}
                           >
-                            + Connect
+                            <Plus size={12} /> Connect
                           </button>
                           <button
                             className="suggestion-dismiss-btn"
@@ -458,19 +552,26 @@ export default function ItemDetail() {
             )}
 
             <div className="backlinks-section">
-              <h3>🔗 Backlinks</h3>
-              {connections.filter(c => c.toItemId === id).length === 0 ? (
+              <h3>
+                <LinkIcon size={18} /> Backlinks
+              </h3>
+              {connections.filter((c) => c.toItemId === id).length === 0 ? (
                 <p className="empty-state">No items link to this one.</p>
               ) : (
                 <div className="backlinks-list">
                   {connections
-                    .filter(c => c.toItemId === id)
-                    .map(conn => {
-                      const fromItem = allItems.find(i => i.id === conn.fromItemId);
+                    .filter((c) => c.toItemId === id)
+                    .map((conn) => {
+                      const fromItem = allItems.find(
+                        (i) => i.id === conn.fromItemId
+                      );
                       if (!fromItem) return null;
                       return (
                         <div key={conn.id} className="backlink-item">
-                          <Link to={`/knowledge/item/${fromItem.id}`} className="backlink-link">
+                          <Link
+                            to={`/knowledge/item/${fromItem.id}`}
+                            className="backlink-link"
+                          >
                             <span className="backlink-type">{conn.type}</span>
                             {getTypeIcon(fromItem.type)} {fromItem.title}
                           </Link>
@@ -482,21 +583,31 @@ export default function ItemDetail() {
             </div>
 
             <div className="connections-section">
-              <h3>🔗 Connected Knowledge</h3>
+              <h3>
+                <LinkIcon size={18} /> Connected Knowledge
+              </h3>
               {connections.length === 0 ? (
-                <p className="empty-state">No connections yet. Connect this item to other knowledge.</p>
+                <p className="empty-state">
+                  No connections yet. Connect this item to other knowledge.
+                </p>
               ) : (
                 <div className="connections-list">
-                  {connections.map(conn => {
+                  {connections.map((conn) => {
                     const connectedItem = getConnectedItem(conn);
                     return (
                       <div key={conn.id} className="connection-item">
-                        <Link to={`/knowledge/item/${connectedItem.id}`} className="connection-link">
+                        <Link
+                          to={`/knowledge/item/${connectedItem.id}`}
+                          className="connection-link"
+                        >
                           <span className="connection-type">{conn.type}</span>
                           {getTypeIcon(connectedItem.type)} {connectedItem.title}
                         </Link>
-                        <button onClick={() => setConfirmDeleteConn(conn.id)} className="remove-connection">
-                          ✕
+                        <button
+                          onClick={() => setConfirmDeleteConn(conn.id)}
+                          className="remove-connection"
+                        >
+                          <X size={14} />
                         </button>
                       </div>
                     );
@@ -508,21 +619,32 @@ export default function ItemDetail() {
         )}
 
         {showConnect && (
-          <div className="modal-overlay" onClick={() => {
-            setShowConnect(false);
-            setConnectError('');
-            setSelectedConnectItem('');
-          }}>
+          <div
+            className="modal-overlay"
+            onClick={() => {
+              setShowConnect(false);
+              setConnectError('');
+              setSelectedConnectItem('');
+            }}
+          >
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <h2>Connect to Another Item</h2>
+              <h2>
+                <LinkIcon size={20} /> Connect to Another Item
+              </h2>
 
-              <p style={{ marginBottom: '16px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              <p
+                style={{
+                  marginBottom: '16px',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.9rem',
+                }}
+              >
                 Connecting from: <strong>{item.title}</strong>
               </p>
 
               {connectError && (
                 <div className="error-message" style={{ marginBottom: '16px' }}>
-                  {connectError}
+                  <AlertTriangle size={16} /> {connectError}
                 </div>
               )}
 
@@ -535,9 +657,9 @@ export default function ItemDetail() {
                     required
                   >
                     <option value="">Select an item...</option>
-                    {allItems.map(i => (
+                    {allItems.map((i) => (
                       <option key={i.id} value={i.id}>
-                        {getTypeIcon(i.type)} {i.title}
+                        {i.title}
                       </option>
                     ))}
                   </select>
@@ -569,7 +691,9 @@ export default function ItemDetail() {
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="primary-button">Connect</button>
+                  <button type="submit" className="primary-button">
+                    <LinkIcon size={14} /> Connect
+                  </button>
                 </div>
               </form>
             </div>
@@ -581,7 +705,6 @@ export default function ItemDetail() {
           title="Delete Item?"
           message={`Are you sure you want to delete "${item.title}"? This action cannot be undone.`}
           confirmText="Delete"
-          icon="🗑️"
           onConfirm={handleDeleteConfirm}
           onCancel={() => setConfirmDelete(false)}
         />
@@ -591,7 +714,6 @@ export default function ItemDetail() {
           title="Remove Connection?"
           message="This will remove the connection between these items."
           confirmText="Remove"
-          icon="🔗"
           onConfirm={handleDeleteConnection}
           onCancel={() => setConfirmDeleteConn(null)}
         />

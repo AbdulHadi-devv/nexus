@@ -1,4 +1,8 @@
 import { useState, useRef } from 'react';
+import {
+  Upload, FolderOpen, Package, X, AlertTriangle, CheckCircle2, FileText,
+  Plus, RefreshCw, Info,
+} from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import * as api from '../services/api';
 
@@ -56,25 +60,19 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
     setImporting(true);
 
     try {
-      // Step 1: Optionally delete existing items (replace mode)
       if (mode === 'replace') {
         setProgress({ current: 0, total: 1, step: 'Clearing existing data...' });
-
         const existingItems = await api.getItems();
         for (const item of existingItems.data) {
           await api.deleteItem(item.id);
         }
       }
 
-      // Step 2: Create tags first (items reference them)
-      const tagMap = {}; // oldId → newId
+      const tagMap = {};
       const uniqueTags = new Map();
-
       fileData.items.forEach(item => {
         item.tags?.forEach(tag => {
-          if (!uniqueTags.has(tag.name)) {
-            uniqueTags.set(tag.name, tag);
-          }
+          if (!uniqueTags.has(tag.name)) uniqueTags.set(tag.name, tag);
         });
       });
 
@@ -84,7 +82,6 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
       for (let i = 0; i < tagList.length; i++) {
         const tag = tagList[i];
         setProgress({ current: i + 1, total: tagList.length, step: `Importing tag #${tag.name}` });
-
         try {
           const response = await api.createTag({
             name: tag.name,
@@ -92,7 +89,6 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
           });
           tagMap[tag.id] = response.data.id;
         } catch (error) {
-          // Tag may already exist in merge mode — fetch it
           if (mode === 'merge') {
             const allTags = await api.getTags();
             const existing = allTags.data.find(t => t.name === tag.name);
@@ -101,23 +97,15 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
         }
       }
 
-      // Step 3: Create items
-      const itemMap = {}; // oldId → newId
+      const itemMap = {};
       setProgress({ current: 0, total: fileData.items.length, step: 'Importing items...' });
 
       for (let i = 0; i < fileData.items.length; i++) {
         const item = fileData.items[i];
-        setProgress({
-          current: i + 1,
-          total: fileData.items.length,
-          step: `Importing "${item.title}"`
-        });
+        setProgress({ current: i + 1, total: fileData.items.length, step: `Importing "${item.title}"` });
 
         try {
-          // Map old tag IDs to new tag IDs
-          const newTagIds = (item.tags || [])
-            .map(tag => tagMap[tag.id])
-            .filter(Boolean);
+          const newTagIds = (item.tags || []).map(tag => tagMap[tag.id]).filter(Boolean);
 
           const response = await api.createItem({
             title: item.title,
@@ -130,18 +118,14 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
 
           itemMap[item.id] = response.data.id;
 
-          // Preserve favorite state
           if (item.favorite) {
-            await api.updateItem(response.data.id, {
-              favorite: true,
-            });
+            await api.updateItem(response.data.id, { favorite: true });
           }
         } catch (error) {
           console.error(`Failed to import item "${item.title}":`, error);
         }
       }
 
-      // Step 4: Create connections
       const connectionsToImport = [];
       fileData.items.forEach(item => {
         item.connectionsFrom?.forEach(conn => {
@@ -153,7 +137,6 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
         });
       });
 
-      // Deduplicate
       const uniqueConnections = [];
       const seen = new Set();
       connectionsToImport.forEach(conn => {
@@ -168,11 +151,7 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
 
       for (let i = 0; i < uniqueConnections.length; i++) {
         const conn = uniqueConnections[i];
-        setProgress({
-          current: i + 1,
-          total: uniqueConnections.length,
-          step: 'Linking items...'
-        });
+        setProgress({ current: i + 1, total: uniqueConnections.length, step: 'Linking items...' });
 
         const newFromId = itemMap[conn.fromOldId];
         const newToId = itemMap[conn.toOldId];
@@ -185,13 +164,13 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
               type: conn.type,
             });
           } catch (error) {
-            // Ignore duplicate connection errors
+            // Ignore duplicates
           }
         }
       }
 
       showToast(
-        `✅ Imported ${Object.keys(itemMap).length} items, ${Object.keys(tagMap).length} tags, ${uniqueConnections.length} connections`,
+        `Imported ${Object.keys(itemMap).length} items, ${Object.keys(tagMap).length} tags, ${uniqueConnections.length} connections`,
         'success'
       );
 
@@ -215,13 +194,11 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
     <div className="modal-overlay" onClick={importing ? undefined : onClose}>
       <div className="modal-content import-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>📤 Import Knowledge</h2>
-          <button
-            className="modal-close"
-            onClick={onClose}
-            disabled={importing}
-          >
-            ✕
+          <h2>
+            <Upload size={20} /> Import Knowledge
+          </h2>
+          <button className="modal-close" onClick={onClose} disabled={importing}>
+            <X size={20} />
           </button>
         </div>
 
@@ -241,20 +218,23 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
                 className="file-input"
               />
               <label htmlFor="import-file" className="import-upload-label">
-                <span className="import-icon">📂</span>
+                <span className="import-icon">
+                  <FolderOpen size={48} strokeWidth={1.5} />
+                </span>
                 <span className="import-title">Click to select backup file</span>
                 <span className="import-hint">
-                  Backup files are created via Dashboard → Export JSON
+                  Backup files are created via Dashboard → Export
                 </span>
               </label>
             </div>
           </>
         ) : (
           <>
-            {/* Preview */}
             <div className="import-preview">
               <div className="import-preview-header">
-                <span className="import-icon-small">📦</span>
+                <span className="import-icon-small">
+                  <Package size={28} />
+                </span>
                 <div>
                   <strong>Backup File Loaded</strong>
                   <p className="import-preview-meta">
@@ -291,7 +271,6 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
               </div>
             </div>
 
-            {/* Mode Selection */}
             <div className="import-mode-section">
               <h3 className="import-section-title">Import Mode</h3>
 
@@ -306,7 +285,9 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
                     disabled={importing}
                   />
                   <div className="import-mode-content">
-                    <span className="import-mode-icon">➕</span>
+                    <span className="import-mode-icon">
+                      <Plus size={20} />
+                    </span>
                     <div>
                       <strong>Merge</strong>
                       <p>Add to your existing knowledge. Safe choice.</p>
@@ -324,7 +305,9 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
                     disabled={importing}
                   />
                   <div className="import-mode-content">
-                    <span className="import-mode-icon">⚠️</span>
+                    <span className="import-mode-icon">
+                      <AlertTriangle size={20} />
+                    </span>
                     <div>
                       <strong>Replace</strong>
                       <p>Delete everything, then import. Cannot be undone.</p>
@@ -335,12 +318,12 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
 
               {mode === 'replace' && (
                 <div className="import-warning">
-                  ⚠️ <strong>Warning:</strong> All existing items, tags, and connections will be permanently deleted.
+                  <AlertTriangle size={16} />
+                  <span><strong>Warning:</strong> All existing items, tags, and connections will be permanently deleted.</span>
                 </div>
               )}
             </div>
 
-            {/* Progress */}
             {importing && (
               <div className="import-progress">
                 <div className="import-progress-header">
@@ -348,10 +331,7 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
                   <span>{progressPercent}%</span>
                 </div>
                 <div className="import-progress-bar">
-                  <div
-                    className="import-progress-fill"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+                  <div className="import-progress-fill" style={{ width: `${progressPercent}%` }} />
                 </div>
                 <p className="import-progress-counter">
                   {progress.current} / {progress.total}
@@ -359,14 +339,8 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
               </div>
             )}
 
-            {/* Actions */}
             <div className="form-actions">
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={handleReset}
-                disabled={importing}
-              >
+              <button type="button" className="cancel-button" onClick={handleReset} disabled={importing}>
                 Choose Different File
               </button>
               <button
@@ -377,11 +351,13 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }) {
               >
                 {importing ? (
                   <>
-                    <span className="spinner"></span>
+                    <RefreshCw size={16} className="spin-icon" />
                     Importing...
                   </>
                 ) : (
-                  `Import ${fileData.items.length} Items`
+                  <>
+                    <Upload size={16} /> Import {fileData.items.length} Items
+                  </>
                 )}
               </button>
             </div>

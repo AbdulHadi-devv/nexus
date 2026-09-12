@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -25,7 +26,9 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="not-found-page">
           <div className="not-found-content">
-            <div className="not-found-code">⚠️</div>
+            <div className="not-found-code">
+              <AlertTriangle size={96} strokeWidth={1.2} style={{ color: '#ef4444', opacity: 0.5 }} />
+            </div>
             <h1 className="not-found-title">Something went wrong</h1>
             <p className="not-found-message">
               We're sorry, an unexpected error occurred. Please try again.
@@ -40,10 +43,10 @@ class ErrorBoundary extends React.Component {
             )}
             <div className="not-found-actions">
               <button onClick={this.handleReset} className="primary-button">
-                🏠 Go to Home
+                <Home size={16} /> Go to Home
               </button>
               <button onClick={() => window.location.reload()} className="cancel-button">
-                🔄 Reload Page
+                <RefreshCw size={16} /> Reload Page
               </button>
             </div>
           </div>

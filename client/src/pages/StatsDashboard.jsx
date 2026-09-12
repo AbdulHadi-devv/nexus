@@ -1,18 +1,41 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Bot, BookOpen, Network, BarChart3, Tags as TagsIcon, Sun, Moon,
+  FileText, Link2, Code2, Lightbulb, Library, Star, TrendingUp,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
+import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
 import * as api from '../services/api';
+
+const ITEM_ICONS = {
+  NOTE: FileText,
+  BOOKMARK: Link2,
+  CODE: Code2,
+  IDEA: Lightbulb,
+  RESOURCE: Library,
+};
 
 export default function StatsDashboard() {
   const { user } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchItems();
   }, []);
+
+  useKnowledgeShortcuts({
+    onCreate: () => navigate('/knowledge/create'),
+    onSearch: () => navigate('/knowledge'),
+    onDashboard: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+    onGraph: () => navigate('/knowledge/graph'),
+    onToggleTheme: toggleDarkMode,
+  });
 
   const fetchItems = async () => {
     try {
@@ -25,42 +48,44 @@ export default function StatsDashboard() {
     }
   };
 
-  const getTypeIcon = (type) => {
-    const icons = {
-      NOTE: '📝', BOOKMARK: '🔗', CODE: '💻',
-      IDEA: '💡', RESOURCE: '📚'
-    };
-    return icons[type] || '📄';
+  const getTypeIcon = (type, size = 14) => {
+    const Icon = ITEM_ICONS[type] || FileText;
+    return <Icon size={size} strokeWidth={2.2} />;
   };
 
   const getTypeColor = (type) => {
     const colors = {
-      NOTE: '#6366f1', BOOKMARK: '#f59e0b', CODE: '#10b981',
-      IDEA: '#ec4899', RESOURCE: '#3b82f6'
+      NOTE: '#6366f1',
+      BOOKMARK: '#f59e0b',
+      CODE: '#10b981',
+      IDEA: '#ec4899',
+      RESOURCE: '#3b82f6',
     };
     return colors[type] || '#6366f1';
   };
 
   const stats = {
     totalItems: items.length,
-    totalConnections: Math.floor(items.reduce((acc, item) => {
-      return acc + (item.connectionsFrom?.length || 0) + (item.connectionsTo?.length || 0);
-    }, 0) / 2),
-    totalTags: new Set(items.flatMap(i => i.tags?.map(t => t.id) || [])).size,
-    totalFavorites: items.filter(i => i.favorite).length,
+    totalConnections: Math.floor(
+      items.reduce((acc, item) => {
+        return acc + (item.connectionsFrom?.length || 0) + (item.connectionsTo?.length || 0);
+      }, 0) / 2
+    ),
+    totalTags: new Set(items.flatMap((i) => i.tags?.map((t) => t.id) || [])).size,
+    totalFavorites: items.filter((i) => i.favorite).length,
   };
 
   const byType = {
-    NOTE: items.filter(i => i.type === 'NOTE').length,
-    BOOKMARK: items.filter(i => i.type === 'BOOKMARK').length,
-    CODE: items.filter(i => i.type === 'CODE').length,
-    IDEA: items.filter(i => i.type === 'IDEA').length,
-    RESOURCE: items.filter(i => i.type === 'RESOURCE').length,
+    NOTE: items.filter((i) => i.type === 'NOTE').length,
+    BOOKMARK: items.filter((i) => i.type === 'BOOKMARK').length,
+    CODE: items.filter((i) => i.type === 'CODE').length,
+    IDEA: items.filter((i) => i.type === 'IDEA').length,
+    RESOURCE: items.filter((i) => i.type === 'RESOURCE').length,
   };
 
   const tagFrequency = {};
-  items.forEach(item => {
-    item.tags?.forEach(tag => {
+  items.forEach((item) => {
+    item.tags?.forEach((tag) => {
       tagFrequency[tag.name] = (tagFrequency[tag.name] || 0) + 1;
     });
   });
@@ -70,23 +95,24 @@ export default function StatsDashboard() {
 
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const recentItems = items.filter(i => new Date(i.createdAt) >= sevenDaysAgo).length;
+  const recentItems = items.filter((i) => new Date(i.createdAt) >= sevenDaysAgo).length;
 
   const activityByDay = {};
   for (let i = 29; i >= 0; i--) {
     const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     activityByDay[date.toISOString().split('T')[0]] = 0;
   }
-  items.forEach(item => {
+  items.forEach((item) => {
     const key = new Date(item.createdAt).toISOString().split('T')[0];
     if (activityByDay[key] !== undefined) activityByDay[key]++;
   });
   const maxActivity = Math.max(...Object.values(activityByDay), 1);
 
   const topConnected = items
-    .map(item => ({
+    .map((item) => ({
       ...item,
-      connectionCount: (item.connectionsFrom?.length || 0) + (item.connectionsTo?.length || 0),
+      connectionCount:
+        (item.connectionsFrom?.length || 0) + (item.connectionsTo?.length || 0),
     }))
     .sort((a, b) => b.connectionCount - a.connectionCount)
     .slice(0, 5);
@@ -111,20 +137,27 @@ export default function StatsDashboard() {
           <div className="knowledge-logo">NEXUS</div>
           <div className="knowledge-header-actions">
             <div className="nav-group">
-              <Link to="/ai-builder" className="nav-link">🤖 AI</Link>
-              <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-              <Link to="/knowledge/graph" className="nav-link">🕸️ Graph</Link>
-              <span className="nav-link active">📊 Stats</span>
-              <Link to="/knowledge/tags" className="nav-link">🏷️ Tags</Link>
+              <Link to="/ai-builder" className="nav-link">
+                <Bot size={16} /> AI
+              </Link>
+              <Link to="/knowledge" className="nav-link">
+                <BookOpen size={16} /> Dashboard
+              </Link>
+              <Link to="/knowledge/graph" className="nav-link">
+                <Network size={16} /> Graph
+              </Link>
+              <span className="nav-link active">
+                <BarChart3 size={16} /> Stats
+              </span>
+              <Link to="/knowledge/tags" className="nav-link">
+                <TagsIcon size={16} /> Tags
+              </Link>
             </div>
             <div className="header-user-group">
               <span className="user-name">👤 {user?.name}</span>
-              <button
-                className="theme-toggle-small"
-                onClick={toggleDarkMode}
-                title="Toggle theme"
-              >
-                {darkMode ? '☀️' : '🌙'}
+              <HeaderShortcutsButton />
+              <button className="theme-toggle-small" onClick={toggleDarkMode}>
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
           </div>
@@ -133,41 +166,51 @@ export default function StatsDashboard() {
 
       <div className="stats-page">
         <div className="stats-page-header">
-          <h1>📊 Knowledge Statistics</h1>
+          <h1>Knowledge Statistics</h1>
           <p>Insights into your knowledge base</p>
         </div>
 
         <div className="stats-summary-grid">
           <div className="stats-summary-card">
-            <span className="stats-summary-icon">📚</span>
+            <span className="stats-summary-icon icon-blue">
+              <BookOpen size={26} />
+            </span>
             <div>
               <div className="stats-summary-number">{stats.totalItems}</div>
               <div className="stats-summary-label">Total Items</div>
             </div>
           </div>
           <div className="stats-summary-card">
-            <span className="stats-summary-icon">🔗</span>
+            <span className="stats-summary-icon icon-purple">
+              <Network size={26} />
+            </span>
             <div>
               <div className="stats-summary-number">{stats.totalConnections}</div>
               <div className="stats-summary-label">Connections</div>
             </div>
           </div>
           <div className="stats-summary-card">
-            <span className="stats-summary-icon">🏷️</span>
+            <span className="stats-summary-icon icon-amber">
+              <TagsIcon size={26} />
+            </span>
             <div>
               <div className="stats-summary-number">{stats.totalTags}</div>
               <div className="stats-summary-label">Unique Tags</div>
             </div>
           </div>
           <div className="stats-summary-card">
-            <span className="stats-summary-icon">⭐</span>
+            <span className="stats-summary-icon icon-pink">
+              <Star size={26} />
+            </span>
             <div>
               <div className="stats-summary-number">{stats.totalFavorites}</div>
               <div className="stats-summary-label">Favorites</div>
             </div>
           </div>
           <div className="stats-summary-card">
-            <span className="stats-summary-icon">🔥</span>
+            <span className="stats-summary-icon icon-green">
+              <TrendingUp size={26} />
+            </span>
             <div>
               <div className="stats-summary-number">{recentItems}</div>
               <div className="stats-summary-label">Added This Week</div>
@@ -176,12 +219,15 @@ export default function StatsDashboard() {
         </div>
 
         <div className="stats-section">
-          <h2>📋 Items by Type</h2>
+          <h2>
+            <FileText size={18} /> Items by Type
+          </h2>
           <div className="type-breakdown">
             {Object.entries(byType).map(([type, count]) => {
-              const percentage = stats.totalItems > 0
-                ? Math.round((count / stats.totalItems) * 100)
-                : 0;
+              const percentage =
+                stats.totalItems > 0
+                  ? Math.round((count / stats.totalItems) * 100)
+                  : 0;
               return (
                 <div key={type} className="type-row">
                   <span className="type-label">
@@ -196,7 +242,9 @@ export default function StatsDashboard() {
                       }}
                     />
                   </div>
-                  <span className="type-count">{count} ({percentage}%)</span>
+                  <span className="type-count">
+                    {count} ({percentage}%)
+                  </span>
                 </div>
               );
             })}
@@ -204,7 +252,9 @@ export default function StatsDashboard() {
         </div>
 
         <div className="stats-section">
-          <h2>📈 Activity (Last 30 Days)</h2>
+          <h2>
+            <TrendingUp size={18} /> Activity (Last 30 Days)
+          </h2>
           <div className="activity-chart">
             {Object.entries(activityByDay).map(([date, count]) => (
               <div
@@ -224,7 +274,9 @@ export default function StatsDashboard() {
         </div>
 
         <div className="stats-section">
-          <h2>🏷️ Top Tags</h2>
+          <h2>
+            <TagsIcon size={18} /> Top Tags
+          </h2>
           {topTags.length === 0 ? (
             <p className="empty-state">No tags yet.</p>
           ) : (
@@ -240,7 +292,9 @@ export default function StatsDashboard() {
         </div>
 
         <div className="stats-section">
-          <h2>🔗 Most Connected Items</h2>
+          <h2>
+            <Network size={18} /> Most Connected Items
+          </h2>
           {topConnected.length === 0 || topConnected[0].connectionCount === 0 ? (
             <p className="empty-state">No connections yet.</p>
           ) : (
@@ -252,7 +306,9 @@ export default function StatsDashboard() {
                   className="top-connected-item"
                 >
                   <span className="top-connected-rank">#{index + 1}</span>
-                  <span className="top-connected-icon">{getTypeIcon(item.type)}</span>
+                  <span className="top-connected-icon">
+                    {getTypeIcon(item.type)}
+                  </span>
                   <span className="top-connected-title">{item.title}</span>
                   <span className="top-connected-count">
                     {item.connectionCount} connections

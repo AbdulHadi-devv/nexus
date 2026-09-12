@@ -1,29 +1,33 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Brain, BookOpen, History, Sun, Moon, X,
+  ArrowRight, Wand2, AlertTriangle, Star,
+} from 'lucide-react';
 import ProblemAnalysis from '../components/ProblemAnalysis';
 import SolutionList from '../components/SolutionList';
 import Blueprint from '../components/Blueprint';
+import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
 import {
   analyzeProblem,
   generateSolutions,
   generateBlueprint,
 } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
-import { 
-  copyToClipboard, 
-  formatBlueprintForCopy, 
+import {
+  copyToClipboard,
+  formatBlueprintForCopy,
   showToast,
-  decodeBlueprintFromURL
+  decodeSharedDataFromURL,
 } from '../services/utils';
 import { saveToHistory, getHistory, deleteHistoryEntry } from '../services/history';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
-// Loading states
 const LOADING_STATES = {
   IDLE: 'idle',
   ANALYZING: 'analyzing',
   GENERATING_SOLUTIONS: 'generating_solutions',
-  GENERATING_BLUEPRINT: 'generating_blueprint'
+  GENERATING_BLUEPRINT: 'generating_blueprint',
 };
 
 function AIBuilder() {
@@ -39,42 +43,50 @@ function AIBuilder() {
   const [loadingState, setLoadingState] = useState(LOADING_STATES.IDLE);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const isLoading = loadingState !== LOADING_STATES.IDLE;
 
-  // Load history on mount and check for shared blueprint
+  // Load history + handle shared data on mount
   useEffect(() => {
     const savedHistory = getHistory();
     setHistory(savedHistory);
 
-    const sharedBlueprint = decodeBlueprintFromURL();
-    if (sharedBlueprint) {
-      setBlueprint(sharedBlueprint);
-      showToast('📦 Loaded shared blueprint!', 'success');
+    const shared = decodeSharedDataFromURL();
+    if (shared) {
+      if (shared.problem) setProblem(shared.problem);
+      if (shared.analysis) setAnalysis(shared.analysis);
+      if (Array.isArray(shared.solutions)) setSolutions(shared.solutions);
+      if (shared.selectedSolution) setSelectedSolution(shared.selectedSolution);
+      if (shared.blueprint) setBlueprint(shared.blueprint);
+      showToast('Loaded shared blueprint!', 'success');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
+  // Esc closes history sidebar (shortcuts modal handles its own Esc)
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && showHistory) {
+        setShowHistory(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [showHistory]);
+
   const getLoadingMessage = () => {
     switch (loadingState) {
-      case LOADING_STATES.ANALYZING:
-        return 'Analyzing your problem...';
-      case LOADING_STATES.GENERATING_SOLUTIONS:
-        return 'Generating possible solutions...';
-      case LOADING_STATES.GENERATING_BLUEPRINT:
-        return 'Building your MVP blueprint...';
-      default:
-        return 'Processing...';
+      case LOADING_STATES.ANALYZING: return 'Analyzing your problem...';
+      case LOADING_STATES.GENERATING_SOLUTIONS: return 'Generating solutions...';
+      case LOADING_STATES.GENERATING_BLUEPRINT: return 'Building blueprint...';
+      default: return 'Processing...';
     }
   };
 
   const handleAnalyze = async () => {
-    const currentProblem = problem;
-    
-    if (!currentProblem.trim()) {
+    if (!problem.trim()) {
       setError('Please describe a problem first.');
-      showToast('❌ Please describe a problem first.', 'error');
+      showToast('Please describe a problem first.', 'error');
       return;
     }
 
@@ -87,14 +99,13 @@ function AIBuilder() {
     setLoadingState(LOADING_STATES.ANALYZING);
 
     try {
-      const result = await analyzeProblem(currentProblem);
+      const result = await analyzeProblem(problem);
       setAnalysis(result.analysis);
-      console.log('Analysis received:', result.analysis);
-      showToast('✅ Problem analyzed successfully!', 'success');
+      showToast('Problem analyzed successfully!', 'success');
     } catch (err) {
       console.error('Analysis error:', err);
       setError('Nexus could not analyze the problem right now. Please try again.');
-      showToast('❌ Failed to analyze problem', 'error');
+      showToast('Failed to analyze problem', 'error');
     } finally {
       setLoadingState(LOADING_STATES.IDLE);
     }
@@ -103,7 +114,7 @@ function AIBuilder() {
   const handleGenerateSolutions = async () => {
     if (!analysis) {
       setError('Please analyze the problem first.');
-      showToast('❌ Please analyze the problem first.', 'error');
+      showToast('Please analyze the problem first.', 'error');
       return;
     }
 
@@ -117,12 +128,11 @@ function AIBuilder() {
     try {
       const result = await generateSolutions(problem, analysis);
       setSolutions(result.solutions);
-      console.log('Solutions received:', result.solutions);
-      showToast('💡 Solutions generated successfully!', 'success');
+      showToast('Solutions generated successfully!', 'success');
     } catch (err) {
       console.error('Solutions error:', err);
       setError('Nexus could not generate solutions right now. Please try again.');
-      showToast('❌ Failed to generate solutions', 'error');
+      showToast('Failed to generate solutions', 'error');
     } finally {
       setLoadingState(LOADING_STATES.IDLE);
     }
@@ -138,8 +148,7 @@ function AIBuilder() {
     try {
       const result = await generateBlueprint(problem, analysis, solution);
       setBlueprint(result.blueprint);
-      console.log('Blueprint received:', result.blueprint);
-      
+
       const entry = saveToHistory(
         problem,
         analysis,
@@ -149,15 +158,14 @@ function AIBuilder() {
       );
       if (entry) {
         setBlueprintId(entry.id);
-        setHistory(prev => [entry, ...prev]);
-        showToast('📚 Saved to history!', 'success');
+        setHistory((prev) => [entry, ...prev]);
       }
-      
-      showToast('🏗️ Blueprint generated successfully!', 'success');
+
+      showToast('Blueprint generated successfully!', 'success');
     } catch (err) {
       console.error('Blueprint error:', err);
       setError('Nexus could not generate the MVP blueprint right now. Please try again.');
-      showToast('❌ Failed to generate blueprint', 'error');
+      showToast('Failed to generate blueprint', 'error');
     } finally {
       setLoadingState(LOADING_STATES.IDLE);
     }
@@ -165,15 +173,15 @@ function AIBuilder() {
 
   const handleCopyBlueprint = async () => {
     if (!blueprint) {
-      showToast('❌ No blueprint to copy', 'error');
+      showToast('No blueprint to copy', 'error');
       return;
     }
     const text = formatBlueprintForCopy(blueprint);
     const success = await copyToClipboard(text);
     if (success) {
-      showToast('✅ Blueprint copied to clipboard!', 'success');
+      showToast('Blueprint copied to clipboard!', 'success');
     } else {
-      showToast('❌ Failed to copy. Please try again.', 'error');
+      showToast('Failed to copy. Please try again.', 'error');
     }
   };
 
@@ -185,17 +193,17 @@ function AIBuilder() {
     setBlueprint(entry.blueprint);
     setBlueprintId(entry.id);
     setShowHistory(false);
-    showToast('📂 Loaded from history!', 'success');
+    showToast('Loaded from history!', 'success');
   };
 
   const deleteEntry = (id) => {
     deleteHistoryEntry(id);
-    setHistory(prev => prev.filter(e => e.id !== id));
+    setHistory((prev) => prev.filter((e) => e.id !== id));
     if (blueprintId === id) {
       setBlueprint(null);
       setBlueprintId(null);
     }
-    showToast('🗑️ Entry deleted', 'info');
+    showToast('Entry deleted', 'info');
   };
 
   const refreshHistory = () => {
@@ -207,19 +215,15 @@ function AIBuilder() {
     onAnalyze: handleAnalyze,
     onGenerateSolutions: handleGenerateSolutions,
     onGenerateBlueprint: () => {
-      if (selectedSolution && !isLoading) {
-        handleSelectSolution(selectedSolution);
-      }
+      if (selectedSolution && !isLoading) handleSelectSolution(selectedSolution);
     },
     onCopy: handleCopyBlueprint,
     onToggleTheme: toggleDarkMode,
     onToggleHistory: () => setShowHistory(!showHistory),
-    onToggleShortcuts: () => setShowShortcuts(!showShortcuts)
   });
 
   return (
     <main className="app ai-builder-page">
-      {/* Header */}
       <header className="header">
         <div className="header-content">
           <div className="logo-section">
@@ -227,37 +231,38 @@ function AIBuilder() {
             <span className="tagline">AI Product Builder</span>
           </div>
           <div className="header-actions">
-            <Link to="/knowledge" className="nav-link">
-              📚 Knowledge
+            <Link
+              to="/knowledge"
+              className="knowledge-cta-button"
+              title="Open your Knowledge Base"
+            >
+              <span className="cta-icon"><Brain size={22} /></span>
+              <span className="cta-content">
+                <span className="cta-title">Knowledge</span>
+                <span className="cta-subtitle">Your second brain</span>
+              </span>
+              <span className="cta-arrow"><ArrowRight size={16} /></span>
             </Link>
-            <button 
+            <button
               className="header-button"
               onClick={() => setShowHistory(!showHistory)}
               title="View history (Ctrl+H)"
             >
-              📚
+              <History size={18} />
             </button>
-            <button 
-              className="header-button"
-              onClick={() => setShowShortcuts(!showShortcuts)}
-              title="Keyboard shortcuts"
-            >
-              ⌨️
-            </button>
+            <HeaderShortcutsButton />
             <div className="header-badge">FROM PROBLEM TO PRODUCT</div>
             <button
               className="theme-toggle"
               onClick={toggleDarkMode}
-              aria-label="Toggle dark mode"
               title="Toggle theme (Ctrl+D)"
             >
-              {darkMode ? '☀️' : '🌙'}
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
       <section className="hero">
         <div className="eyebrow">FROM PROBLEM TO PRODUCT</div>
         <h1>
@@ -267,15 +272,12 @@ function AIBuilder() {
           and actionable MVPs.
         </h1>
         <p className="hero-description">
-          Describe a problem. Nexus analyzes it, explores
-          possible solutions, and creates a practical MVP
-          blueprint you can actually build.
+          Describe a problem. Nexus analyzes it, explores possible solutions,
+          and creates a practical MVP blueprint you can actually build.
         </p>
       </section>
 
-      {/* Main Workspace */}
       <div className="nexus-workspace">
-        {/* Problem Input */}
         <div className="problem-card">
           <div className="problem-card-header">
             <div>
@@ -291,7 +293,7 @@ function AIBuilder() {
 
           <textarea
             value={problem}
-            onChange={(event) => setProblem(event.target.value)}
+            onChange={(e) => setProblem(e.target.value)}
             placeholder="Example: Students struggle to find good study resources for difficult topics..."
             rows="7"
             disabled={isLoading}
@@ -304,9 +306,7 @@ function AIBuilder() {
           />
 
           <div className="problem-card-footer">
-            <span className="character-count">
-              {problem.length} characters
-            </span>
+            <span className="character-count">{problem.length} characters</span>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span className="shortcut-hint">Ctrl+Enter</span>
               <button
@@ -320,32 +320,37 @@ function AIBuilder() {
                     {getLoadingMessage()}
                   </>
                 ) : (
-                  'Analyze Problem →'
+                  <>
+                    <Wand2 size={16} />
+                    Analyze Problem
+                  </>
                 )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="error-message">
-            <span className="error-icon">⚠️</span>
+            <AlertTriangle size={20} className="error-icon" />
             <span>{error}</span>
-            <button className="error-close" onClick={() => setError('')}>×</button>
+            <button className="error-close" onClick={() => setError('')}>
+              <X size={20} />
+            </button>
           </div>
         )}
 
-        {/* Analysis */}
         {analysis && (
           <ProblemAnalysis
             analysis={analysis}
             onGenerateSolutions={handleGenerateSolutions}
-            loading={isLoading && loadingState === LOADING_STATES.GENERATING_SOLUTIONS}
+            loading={
+              isLoading &&
+              loadingState === LOADING_STATES.GENERATING_SOLUTIONS
+            }
           />
         )}
 
-        {/* Solutions */}
         {solutions.length > 0 && (
           <SolutionList
             solutions={solutions}
@@ -353,87 +358,126 @@ function AIBuilder() {
           />
         )}
 
-        {/* Selected Solution */}
         {selectedSolution && (
           <div className="selected-solution">
             <div>
               <span className="card-label">SELECTED SOLUTION</span>
               <h3>{selectedSolution.name}</h3>
               <p>
-                {isLoading && loadingState === LOADING_STATES.GENERATING_BLUEPRINT ? (
-                  'Building your MVP blueprint...'
-                ) : (
-                  'Blueprint ready!'
-                )}
+                {isLoading &&
+                loadingState === LOADING_STATES.GENERATING_BLUEPRINT
+                  ? 'Building your MVP blueprint...'
+                  : 'Blueprint ready!'}
               </p>
             </div>
             <div className="selected-solution-actions">
               <span className="difficulty-badge">
                 {selectedSolution.difficulty}
               </span>
-              {isLoading && loadingState === LOADING_STATES.GENERATING_BLUEPRINT && (
-                <div className="loading-indicator">
-                  <span className="spinner-small"></span>
-                  Generating...
-                </div>
-              )}
+              {isLoading &&
+                loadingState === LOADING_STATES.GENERATING_BLUEPRINT && (
+                  <div className="loading-indicator">
+                    <span className="spinner-small"></span>
+                    Generating...
+                  </div>
+                )}
             </div>
           </div>
         )}
 
-        {/* Blueprint */}
         {blueprint && (
           <Blueprint
             blueprint={blueprint}
-            loading={isLoading && loadingState === LOADING_STATES.GENERATING_BLUEPRINT}
+            loading={
+              isLoading &&
+              loadingState === LOADING_STATES.GENERATING_BLUEPRINT
+            }
             blueprintId={blueprintId}
             onRefresh={refreshHistory}
+            sharePayload={{
+              problem,
+              analysis,
+              solutions,
+              selectedSolution,
+              blueprint,
+            }}
           />
         )}
       </div>
 
-      {/* History Sidebar */}
       {showHistory && (
-        <div className="history-overlay" onClick={() => setShowHistory(false)}>
-          <div className="history-sidebar" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="history-overlay"
+          onClick={() => setShowHistory(false)}
+        >
+          <div
+            className="history-sidebar"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="history-header">
-              <h3>📚 History</h3>
+              <h3>
+                <History size={20} /> History
+              </h3>
               <div>
                 {history.length > 0 && (
-                  <button 
+                  <button
                     className="history-clear"
                     onClick={() => {
                       if (window.confirm('Clear all history?')) {
                         localStorage.removeItem('nexus_problem_history');
                         setHistory([]);
-                        showToast('🗑️ History cleared', 'info');
+                        showToast('History cleared', 'info');
                       }
                     }}
                   >
                     Clear All
                   </button>
                 )}
-                <button className="history-close" onClick={() => setShowHistory(false)}>✕</button>
+                <button
+                  className="history-close"
+                  onClick={() => setShowHistory(false)}
+                >
+                  <X size={20} />
+                </button>
               </div>
             </div>
             <div className="history-list">
               {history.length === 0 ? (
-                <p className="empty-state">No history yet. Generate a blueprint to save it here!</p>
+                <p className="empty-state">
+                  No history yet. Generate a blueprint to save it here!
+                </p>
               ) : (
                 history.map((entry) => (
-                  <div key={entry.id} className={`history-item ${entry.favorite ? 'favorite' : ''}`}>
+                  <div
+                    key={entry.id}
+                    className={`history-item ${
+                      entry.favorite ? 'favorite' : ''
+                    }`}
+                  >
                     <div className="history-item-content">
                       <div className="history-item-top">
                         <strong>{entry.problem?.slice(0, 60)}...</strong>
-                        {entry.favorite && <span className="favorite-star">⭐</span>}
+                        {entry.favorite && (
+                          <Star size={14} fill="#f59e0b" color="#f59e0b" />
+                        )}
                       </div>
                       <span className="history-date">
                         {new Date(entry.timestamp).toLocaleString()}
                       </span>
                     </div>
                     <div className="history-item-actions">
-                      <button onClick={() => loadHistoryEntry(entry)} title="Load this blueprint">📂</button>
-                      <button onClick={() => deleteEntry(entry.id)} title="Delete">🗑️</button>
+                      <button
+                        onClick={() => loadHistoryEntry(entry)}
+                        title="Load"
+                      >
+                        <BookOpen size={14} />
+                      </button>
+                      <button
+                        onClick={() => deleteEntry(entry.id)}
+                        title="Delete"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
                   </div>
                 ))
@@ -443,57 +487,6 @@ function AIBuilder() {
         </div>
       )}
 
-      {/* Shortcuts Help */}
-      {showShortcuts && (
-        <div className="shortcuts-overlay" onClick={() => setShowShortcuts(false)}>
-          <div className="shortcuts-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="shortcuts-header">
-              <h3>⌨️ Keyboard Shortcuts</h3>
-              <button className="shortcuts-close" onClick={() => setShowShortcuts(false)}>✕</button>
-            </div>
-            <div className="shortcuts-list">
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + 1</span>
-                <span className="shortcut-action">Analyze Problem</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + 2</span>
-                <span className="shortcut-action">Generate Solutions</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + 3</span>
-                <span className="shortcut-action">Generate Blueprint</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + C</span>
-                <span className="shortcut-action">Copy Blueprint</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + H</span>
-                <span className="shortcut-action">Toggle History</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + D</span>
-                <span className="shortcut-action">Toggle Dark/Light Mode</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + Enter</span>
-                <span className="shortcut-action">Analyze (in textarea)</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl + Shift + /</span>
-                <span className="shortcut-action">Toggle Shortcuts</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Esc</span>
-                <span className="shortcut-action">Close Modals</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer */}
       <footer className="app-footer">
         <div className="footer-content">
           <strong>NEXUS</strong>

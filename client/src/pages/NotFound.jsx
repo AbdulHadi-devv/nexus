@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom';
+import { Bot, BookOpen, Home, Compass } from 'lucide-react';
 
 export default function NotFound() {
   return (
     <div className="not-found-page">
       <div className="not-found-content">
-        <div className="not-found-code">404</div>
+        <div className="not-found-code">
+          <Compass size={96} strokeWidth={1.2} />
+          <span>404</span>
+        </div>
         <h1 className="not-found-title">Page not found</h1>
         <p className="not-found-message">
           The page you're looking for doesn't exist or has been moved.
@@ -12,10 +16,10 @@ export default function NotFound() {
         </p>
         <div className="not-found-actions">
           <Link to="/ai-builder" className="primary-button">
-            🤖 AI Builder
+            <Bot size={16} /> AI Builder
           </Link>
           <Link to="/knowledge" className="cancel-button">
-            📚 Knowledge Dashboard
+            <BookOpen size={16} /> Knowledge Dashboard
           </Link>
         </div>
       </div>

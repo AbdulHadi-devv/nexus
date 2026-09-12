@@ -1,23 +1,39 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Bot, BookOpen, Network as NetworkIcon, BarChart3,
+  Tags as TagsIcon, Sun, Moon, RefreshCw, Maximize, Zap, X,
+} from 'lucide-react';
 import { Network } from 'vis-network/standalone';
 import * as api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
+import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
 
 export default function KnowledgeGraph() {
   const { user } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [physicsEnabled, setPhysicsEnabled] = useState(true);
   const networkRef = useRef(null);
   const containerRef = useRef(null);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useKnowledgeShortcuts({
+    onCreate: () => navigate('/knowledge/create'),
+    onSearch: () => navigate('/knowledge'),
+    onDashboard: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+    onGraph: () => {},
+    onToggleTheme: toggleDarkMode,
+  });
 
   const fetchData = async () => {
     setLoading(true);
@@ -26,12 +42,12 @@ export default function KnowledgeGraph() {
       setItems(itemsRes.data);
 
       const allConnections = [];
-      itemsRes.data.forEach(item => {
+      itemsRes.data.forEach((item) => {
         if (item.connectionsFrom?.length > 0) {
-          item.connectionsFrom.forEach(conn => allConnections.push(conn));
+          item.connectionsFrom.forEach((conn) => allConnections.push(conn));
         }
         if (item.connectionsTo?.length > 0) {
-          item.connectionsTo.forEach(conn => allConnections.push(conn));
+          item.connectionsTo.forEach((conn) => allConnections.push(conn));
         }
       });
 
@@ -46,18 +62,13 @@ export default function KnowledgeGraph() {
 
   const getTypeColor = (type) => {
     const colors = {
-      NOTE: '#6366f1', BOOKMARK: '#f59e0b', CODE: '#10b981',
-      IDEA: '#ec4899', RESOURCE: '#3b82f6'
+      NOTE: '#6366f1',
+      BOOKMARK: '#f59e0b',
+      CODE: '#10b981',
+      IDEA: '#ec4899',
+      RESOURCE: '#3b82f6',
     };
     return colors[type] || '#6366f1';
-  };
-
-  const getTypeIcon = (type) => {
-    const icons = {
-      NOTE: '📝', BOOKMARK: '🔗', CODE: '💻',
-      IDEA: '💡', RESOURCE: '📚'
-    };
-    return icons[type] || '📄';
   };
 
   const buildGraph = (itemsData, connectionsData) => {
@@ -76,55 +87,78 @@ export default function KnowledgeGraph() {
     }
 
     const connectedItemIds = new Set();
-    connectionsData.forEach(conn => {
+    connectionsData.forEach((conn) => {
       connectedItemIds.add(conn.fromItemId);
       connectedItemIds.add(conn.toItemId);
     });
 
-    const connectedItems = itemsData.filter(item => connectedItemIds.has(item.id));
+    const connectedItems = itemsData.filter((item) =>
+      connectedItemIds.has(item.id)
+    );
     if (connectedItems.length === 0) return;
 
     const nodesMap = new Map();
-    connectedItems.forEach(item => {
+    connectedItems.forEach((item) => {
       nodesMap.set(item.id, {
         id: item.id,
-        label: item.title.length > 25 ? item.title.substring(0, 25) + '...' : item.title,
-        title: `${getTypeIcon(item.type)} ${item.title}\n${item.content?.substring(0, 100)}...`,
+        label:
+          item.title.length > 25
+            ? item.title.substring(0, 25) + '...'
+            : item.title,
+        title: `${item.title}\n${(item.content || '').substring(0, 100)}...`,
         color: {
           background: getTypeColor(item.type),
           border: getTypeColor(item.type),
           highlight: {
             background: getTypeColor(item.type),
-            border: '#ffffff'
-          }
+            border: '#ffffff',
+          },
         },
         font: {
           color: '#ffffff',
           size: 14,
           face: 'Inter',
           strokeWidth: 2,
-          strokeColor: 'rgba(0,0,0,0.4)'
+          strokeColor: 'rgba(0,0,0,0.4)',
         },
         shape: 'dot',
         size: 25,
         borderWidth: 2,
-        shadow: true
+        shadow: true,
       });
     });
 
     const edgesMap = new Map();
-    connectionsData.forEach(conn => {
-      if (connectedItemIds.has(conn.fromItemId) && connectedItemIds.has(conn.toItemId)) {
+    connectionsData.forEach((conn) => {
+      if (
+        connectedItemIds.has(conn.fromItemId) &&
+        connectedItemIds.has(conn.toItemId) &&
+        !edgesMap.has(conn.id)
+      ) {
         edgesMap.set(conn.id, {
           id: conn.id,
           from: conn.fromItemId,
           to: conn.toItemId,
           label: conn.type || 'RELATED',
-          color: { color: '#94a3b8', highlight: '#6366f1' },
-          font: { size: 10, color: '#94a3b8', face: 'Inter' },
-          arrows: { to: { enabled: true, scaleFactor: 0.5 } },
-          smooth: { type: 'curvedCW', roundness: 0.2 },
-          width: 2
+          color: {
+            color: 'rgba(148, 163, 184, 0.4)',
+            highlight: '#6366f1',
+            hover: '#6366f1',
+          },
+          font: {
+            size: 9,
+            color: '#94a3b8',
+            face: 'Inter',
+            strokeWidth: 0,
+          },
+          arrows: {
+            to: { enabled: true, scaleFactor: 0.4 },
+          },
+          smooth: {
+            type: 'continuous',
+            roundness: 0.5,
+          },
+          width: 1.5,
         });
       }
     });
@@ -135,46 +169,74 @@ export default function KnowledgeGraph() {
 
     const options = {
       nodes: {
-        shape: 'dot', size: 25,
+        shape: 'dot',
+        size: 25,
         font: {
-          size: 14, face: 'Inter', color: '#ffffff',
-          strokeWidth: 2, strokeColor: 'rgba(0,0,0,0.4)'
+          size: 14,
+          face: 'Inter',
+          color: '#ffffff',
+          strokeWidth: 2,
+          strokeColor: 'rgba(0,0,0,0.4)',
         },
-        borderWidth: 2, shadow: true
+        borderWidth: 2,
+        shadow: true,
       },
       edges: {
-        width: 2, shadow: true,
-        smooth: { type: 'curvedCW', roundness: 0.2 },
-        arrows: { to: { enabled: true, scaleFactor: 0.5 } }
+        width: 1.5,
+        shadow: false,
+        smooth: { type: 'continuous', roundness: 0.5 },
+        arrows: { to: { enabled: true, scaleFactor: 0.4 } },
       },
       physics: {
         enabled: true,
-        stabilization: { iterations: 150 },
-        forceAtlas2Based: {
-          gravitationalConstant: -50,
-          centralGravity: 0.01,
-          springLength: 120,
-          springConstant: 0.08,
-          damping: 0.4
-        }
+        stabilization: {
+          enabled: true,
+          iterations: 400,
+          updateInterval: 25,
+          fit: true,
+        },
+        barnesHut: {
+          theta: 0.5,
+          gravitationalConstant: -8000,
+          centralGravity: 0.3,
+          springLength: 95,
+          springConstant: 0.04,
+          damping: 0.09,
+          avoidOverlap: 0.5,
+        },
+        maxVelocity: 50,
+        minVelocity: 0.1,
+        solver: 'barnesHut',
+        timestep: 0.5,
       },
       interaction: {
-        hover: true, tooltipDelay: 200,
-        zoomView: true, dragView: true,
-        navigationButtons: false
+        hover: true,
+        tooltipDelay: 200,
+        zoomView: true,
+        dragView: true,
+        navigationButtons: false,
+        multiselect: false,
       },
       layout: {
         improvedLayout: true,
-        hierarchical: { enabled: false }
-      }
+        hierarchical: { enabled: false },
+      },
     };
 
     const network = new Network(containerRef.current, { nodes, edges }, options);
     networkRef.current = network;
 
+    network.once('stabilizationIterationsDone', () => {
+      network.setOptions({ physics: { enabled: false } });
+      setPhysicsEnabled(false);
+      try {
+        network.fit();
+      } catch (e) {}
+    });
+
     network.on('click', (params) => {
       if (params.nodes.length > 0) {
-        const item = connectedItems.find(i => i.id === params.nodes[0]);
+        const item = connectedItems.find((i) => i.id === params.nodes[0]);
         if (item) setSelectedNode(item);
       }
     });
@@ -184,29 +246,32 @@ export default function KnowledgeGraph() {
         window.location.href = `/knowledge/item/${params.nodes[0]}`;
       }
     });
-
-    setTimeout(() => {
-      try { network.fit(); } catch (e) {}
-    }, 500);
   };
 
   const handleRefresh = () => fetchData();
 
   const togglePhysics = () => {
     if (networkRef.current) {
-      try {
-        const physicsEnabled = networkRef.current.physics.enabled;
-        networkRef.current.setOptions({ physics: { enabled: !physicsEnabled } });
-      } catch (e) {
-        console.log('Physics toggle error:', e);
-      }
+      const newState = !physicsEnabled;
+      setPhysicsEnabled(newState);
+      networkRef.current.setOptions({
+        physics: { enabled: newState },
+      });
     }
   };
 
-  const getTypeIconForDisplay = (type) => {
-    const icons = { NOTE: '📝', BOOKMARK: '🔗', CODE: '💻', IDEA: '💡', RESOURCE: '📚' };
-    return icons[type] || '📄';
-  };
+  if (loading) {
+    return (
+      <div className="knowledge-page">
+        <div className="knowledge-header">
+          <div className="knowledge-header-content">
+            <div className="knowledge-logo">NEXUS</div>
+          </div>
+        </div>
+        <div className="loading-state">Building your knowledge graph...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="knowledge-page page-transition graph-page">
@@ -215,20 +280,27 @@ export default function KnowledgeGraph() {
           <div className="knowledge-logo">NEXUS</div>
           <div className="knowledge-header-actions">
             <div className="nav-group">
-              <Link to="/ai-builder" className="nav-link">🤖 AI</Link>
-              <Link to="/knowledge" className="nav-link">📚 Dashboard</Link>
-              <span className="nav-link active">🕸️ Graph</span>
-              <Link to="/knowledge/stats" className="nav-link">📊 Stats</Link>
-              <Link to="/knowledge/tags" className="nav-link">🏷️ Tags</Link>
+              <Link to="/ai-builder" className="nav-link">
+                <Bot size={16} /> AI
+              </Link>
+              <Link to="/knowledge" className="nav-link">
+                <BookOpen size={16} /> Dashboard
+              </Link>
+              <span className="nav-link active">
+                <NetworkIcon size={16} /> Graph
+              </span>
+              <Link to="/knowledge/stats" className="nav-link">
+                <BarChart3 size={16} /> Stats
+              </Link>
+              <Link to="/knowledge/tags" className="nav-link">
+                <TagsIcon size={16} /> Tags
+              </Link>
             </div>
             <div className="header-user-group">
               <span className="user-name">👤 {user?.name}</span>
-              <button
-                className="theme-toggle-small"
-                onClick={toggleDarkMode}
-                title="Toggle theme"
-              >
-                {darkMode ? '☀️' : '🌙'}
+              <HeaderShortcutsButton />
+              <button className="theme-toggle-small" onClick={toggleDarkMode}>
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
           </div>
@@ -239,22 +311,33 @@ export default function KnowledgeGraph() {
         <div className="graph-stats">
           <span>🧠 {items.length} Items</span>
           <span>🔗 {connections.length} Connections</span>
-          <span>🏷️ {new Set(items.flatMap(i => i.tags?.map(t => t.id) || [])).size} Tags</span>
+          <span>
+            🏷️{' '}
+            {new Set(items.flatMap((i) => i.tags?.map((t) => t.id) || [])).size}{' '}
+            Tags
+          </span>
         </div>
         <div className="graph-actions">
-          <button onClick={handleRefresh} className="primary-button small">🔄 Refresh</button>
+          <button onClick={handleRefresh} className="primary-button small">
+            <RefreshCw size={14} /> Refresh
+          </button>
           <button
             onClick={() => {
               if (networkRef.current) {
-                try { networkRef.current.fit(); } catch (e) {}
+                try {
+                  networkRef.current.fit();
+                } catch (e) {}
               }
             }}
             className="primary-button small"
           >
-            🔍 Fit
+            <Maximize size={14} /> Fit
           </button>
-          <button onClick={togglePhysics} className="primary-button small">
-            ⚡ Physics
+          <button
+            onClick={togglePhysics}
+            className={`primary-button small ${physicsEnabled ? 'active' : ''}`}
+          >
+            <Zap size={14} /> Physics {physicsEnabled ? 'On' : 'Off'}
           </button>
         </div>
       </div>
@@ -266,9 +349,10 @@ export default function KnowledgeGraph() {
       {selectedNode && (
         <div className="graph-node-info">
           <div className="node-info-header">
-            <span>{getTypeIconForDisplay(selectedNode.type)}</span>
             <h3>{selectedNode.title}</h3>
-            <button onClick={() => setSelectedNode(null)} className="close-info">✕</button>
+            <button onClick={() => setSelectedNode(null)} className="close-info">
+              <X size={18} />
+            </button>
           </div>
           <p className="node-info-content">
             {selectedNode.content?.substring(0, 200)}
