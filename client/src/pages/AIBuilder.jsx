@@ -7,7 +7,6 @@ import {
 import ProblemAnalysis from '../components/ProblemAnalysis';
 import SolutionList from '../components/SolutionList';
 import Blueprint from '../components/Blueprint';
-import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
 import {
   analyzeProblem,
   generateSolutions,
@@ -250,7 +249,6 @@ function AIBuilder() {
             >
               <History size={18} />
             </button>
-            <HeaderShortcutsButton />
             <div className="header-badge">FROM PROBLEM TO PRODUCT</div>
             <button
               className="theme-toggle"

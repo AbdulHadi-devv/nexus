@@ -45,10 +45,24 @@ export default function ShortcutsModal({ isOpen, onClose }) {
     <div
       className={`shortcuts-overlay ${isVisible ? 'visible' : ''}`}
       onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+      }}
     >
       <div
         className={`shortcuts-modal ${isVisible ? 'visible' : ''}`}
         onClick={(e) => e.stopPropagation()}
+        style={{
+          maxHeight: '85vh',
+          overflowY: 'auto',
+        }}
       >
         <div className="shortcuts-header">
           <h3>
