@@ -7184,3 +7184,23 @@ svg[class*="lucide-"] {
   font-family: monospace;
 }
 
+/* ============================================================ */
+/* TOAST POSITION — kill stray left/top centering rules          */
+/* but preserve the slide-in animation's transform               */
+/* ============================================================ */
+
+html body .toast-container .toast {
+  /* Kill stray centering on position offsets — but ONLY the
+     properties that were breaking things, and WITHOUT
+     touching transform (so the animation can still work). */
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  /* NOTE: no `transform` or `translate` reset here —
+     those are needed by @keyframes toastEnter / toastExit. */
+}
