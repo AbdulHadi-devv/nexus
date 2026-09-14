@@ -10,6 +10,7 @@ import { useToast } from '../context/ToastContext';
 import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
 import ConfirmDialog from '../components/ConfirmDialog';
 import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
+import CustomSelect from '../components/CustomSelect';
 import * as api from '../services/api';
 
 export default function TagManager() {
@@ -505,20 +506,17 @@ export default function TagManager() {
 
             <div className="form-group">
               <label>Merge Into</label>
-              <select
+              <CustomSelect
                 value={mergeTarget}
                 onChange={(e) => setMergeTarget(e.target.value)}
-                autoFocus
-              >
-                <option value="">Select a tag...</option>
-                {tags
+                placeholder="Select a tag..."
+                options={tags
                   .filter((t) => t.id !== mergingTag.id)
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      #{t.name} ({t.items?.length || 0} items)
-                    </option>
-                  ))}
-              </select>
+                  .map((t) => ({
+                    value: t.id,
+                    label: `#${t.name} (${t.items?.length || 0} items)`,
+                  }))}
+              />
             </div>
 
             {mergeTarget && (

@@ -10,6 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
+import CustomSelect from '../components/CustomSelect';
 
 export default function CreateItem() {
   const { user } = useAuth();
@@ -173,13 +174,18 @@ export default function CreateItem() {
 
           <div className="form-group">
             <label>Type</label>
-            <select name="type" value={formData.type} onChange={handleChange}>
-              <option value="NOTE">Note</option>
-              <option value="BOOKMARK">Bookmark</option>
-              <option value="CODE">Code Snippet</option>
-              <option value="IDEA">Idea</option>
-              <option value="RESOURCE">Resource</option>
-            </select>
+            <CustomSelect
+              name="type"
+              value={formData.type}
+              onChange={handleChange}
+              options={[
+                { value: 'NOTE', label: 'Note' },
+                { value: 'BOOKMARK', label: 'Bookmark' },
+                { value: 'CODE', label: 'Code Snippet' },
+                { value: 'IDEA', label: 'Idea' },
+                { value: 'RESOURCE', label: 'Resource' },
+              ]}
+            />
           </div>
 
           <div className="form-group">

@@ -13,6 +13,7 @@ import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
+import CustomSelect from '../components/CustomSelect';
 
 const ITEM_ICONS = {
   NOTE: FileText,
@@ -380,16 +381,17 @@ export default function ItemDetail() {
             </div>
             <div className="form-group">
               <label>Type</label>
-              <select
+              <CustomSelect
                 value={item.type}
                 onChange={(e) => setItem({ ...item, type: e.target.value })}
-              >
-                <option value="NOTE">Note</option>
-                <option value="BOOKMARK">Bookmark</option>
-                <option value="CODE">Code Snippet</option>
-                <option value="IDEA">Idea</option>
-                <option value="RESOURCE">Resource</option>
-              </select>
+                options={[
+                  { value: 'NOTE', label: 'Note' },
+                  { value: 'BOOKMARK', label: 'Bookmark' },
+                  { value: 'CODE', label: 'Code Snippet' },
+                  { value: 'IDEA', label: 'Idea' },
+                  { value: 'RESOURCE', label: 'Resource' },
+                ]}
+              />
             </div>
             <div className="form-group">
               <div className="markdown-toggle-wrapper">
@@ -651,32 +653,30 @@ export default function ItemDetail() {
               <form onSubmit={handleConnect}>
                 <div className="form-group">
                   <label>Select Item to Connect To</label>
-                  <select
+                  <CustomSelect
                     value={selectedConnectItem}
                     onChange={(e) => setSelectedConnectItem(e.target.value)}
-                    required
-                  >
-                    <option value="">Select an item...</option>
-                    {allItems.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.title}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select an item..."
+                    options={allItems.map((i) => ({
+                      value: i.id,
+                      label: i.title,
+                    }))}
+                  />
                 </div>
 
                 <div className="form-group">
                   <label>Connection Type</label>
-                  <select
+                  <CustomSelect
                     value={connectType}
                     onChange={(e) => setConnectType(e.target.value)}
-                  >
-                    <option value="RELATED">Related</option>
-                    <option value="PARENT_OF">Parent Of</option>
-                    <option value="CHILD_OF">Child Of</option>
-                    <option value="DEPENDS_ON">Depends On</option>
-                    <option value="PREREQUISITE">Prerequisite</option>
-                  </select>
+                    options={[
+                      { value: 'RELATED', label: 'Related' },
+                      { value: 'PARENT_OF', label: 'Parent Of' },
+                      { value: 'CHILD_OF', label: 'Child Of' },
+                      { value: 'DEPENDS_ON', label: 'Depends On' },
+                      { value: 'PREREQUISITE', label: 'Prerequisite' },
+                    ]}
+                  />
                 </div>
 
                 <div className="form-actions">
