@@ -2,18 +2,242 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#6366f1" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nexus - AI Product Builder</title>
+    <meta name="description" content="Nexus — Turn problems into ideas, solutions, and actionable MVPs." />
+    <title>Nexus — AI Product Builder</title>
+
+    <!-- ============================================================ -->
+    <!-- NEXUS FIRST-PAINT PRELOADER                                   -->
+    <!-- ============================================================ -->
+    <!-- Shown before React boots. Fades out once React mounts.        -->
+    <!-- ============================================================ -->
+    <style>
+      /* Pre-hydration loader styles — self-contained, no external CSS */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #0b0b14;
+      }
+
+      #nexus-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: #0b0b14;
+        opacity: 1;
+        transition: opacity 0.4s ease;
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      }
+
+      #nexus-preloader.exiting {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .nexus-pre-tile {
+        position: relative;
+        width: 128px;
+        height: 128px;
+      }
+
+      .nexus-pre-tile-inner {
+        position: absolute;
+        inset: 0;
+        border-radius: 28px;
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        box-shadow:
+          0 20px 60px rgba(99, 102, 241, 0.45),
+          0 8px 24px rgba(168, 85, 247, 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        animation: nexusPreTilePop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+
+      .nexus-pre-tile-inner::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at 30% 25%,
+          rgba(255, 255, 255, 0.35),
+          transparent 55%
+        );
+      }
+
+      .nexus-pre-glow {
+        position: absolute;
+        inset: -20%;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(139, 92, 246, 0.55) 0%,
+          rgba(139, 92, 246, 0) 65%
+        );
+        filter: blur(14px);
+        animation: nexusPreGlow 1.8s ease-in-out infinite;
+      }
+
+      .nexus-pre-svg {
+        position: relative;
+        width: 80%;
+        height: 80%;
+        z-index: 1;
+        overflow: visible;
+      }
+
+      /* The growing snake stroke */
+      .nexus-pre-snake {
+        stroke-dasharray: 240;
+        stroke-dashoffset: 240;
+        animation: nexusPreSnake 1.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      }
+
+      .nexus-pre-label {
+        font-weight: 800;
+        font-size: 1.1rem;
+        letter-spacing: 6px;
+        color: #e5e7eb;
+        text-indent: 6px;
+        animation: nexusPreFade 0.7s ease-out 0.3s both;
+      }
+
+      .nexus-pre-sub {
+        font-weight: 500;
+        font-size: 0.75rem;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #94a3b8;
+        animation: nexusPreFade 0.7s ease-out 0.45s both;
+      }
+
+      @keyframes nexusPreTilePop {
+        0%   { transform: scale(0.85); opacity: 0; }
+        60%  { transform: scale(1.04); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+
+      @keyframes nexusPreGlow {
+        0%, 100% { opacity: 0.65; transform: scale(1); }
+        50%      { opacity: 1;    transform: scale(1.08); }
+      }
+
+      @keyframes nexusPreSnake {
+        0%   { stroke-dashoffset: 240; }
+        100% { stroke-dashoffset: 0; }
+      }
+
+      @keyframes nexusPreFade {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .nexus-pre-tile-inner,
+        .nexus-pre-glow,
+        .nexus-pre-snake,
+        .nexus-pre-label,
+        .nexus-pre-sub {
+          animation: none !important;
+        }
+        .nexus-pre-snake { stroke-dashoffset: 0; }
+      }
+    </style>
   </head>
   <body>
+    <!-- Pre-hydration loader -->
+    <div id="nexus-preloader" aria-label="Loading Nexus">
+      <div class="nexus-pre-tile">
+        <div class="nexus-pre-glow"></div>
+        <div class="nexus-pre-tile-inner">
+          <svg class="nexus-pre-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="nexus-pre-glow-filter" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="1.8" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Guide path (faint) -->
+            <path
+              d="M 25 80 L 25 20 L 75 80 L 75 20"
+              fill="none"
+              stroke="rgba(255,255,255,0.15)"
+              stroke-width="9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+
+            <!-- Growing snake -->
+            <path
+              class="nexus-pre-snake"
+              d="M 25 80 L 25 20 L 75 80 L 75 20"
+              fill="none"
+              stroke="#ffffff"
+              stroke-width="9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              filter="url(#nexus-pre-glow-filter)"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div class="nexus-pre-label">NEXUS</div>
+      <div class="nexus-pre-sub">Loading experience…</div>
+    </div>
+
+    <!-- React root -->
     <div id="root"></div>
+
+    <!-- Script to hide preloader once React mounts -->
+    <script>
+      (function () {
+        var pre = document.getElementById('nexus-preloader');
+        if (!pre) return;
+
+        // Fade out once React has painted something into #root
+        var observer = new MutationObserver(function () {
+          var root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            // Give the app a beat to settle, then fade
+            setTimeout(function () {
+              pre.classList.add('exiting');
+              setTimeout(function () {
+                if (pre.parentNode) pre.parentNode.removeChild(pre);
+              }, 450);
+            }, 300);
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.getElementById('root') || document.body, {
+          childList: true,
+          subtree: true,
+        });
+
+        // Safety net: always remove after 6 seconds, no matter what
+        setTimeout(function () {
+          if (pre.parentNode) {
+            pre.classList.add('exiting');
+            setTimeout(function () {
+              if (pre.parentNode) pre.parentNode.removeChild(pre);
+            }, 450);
+          }
+        }, 6000);
+      })();
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

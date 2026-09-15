@@ -1,3 +1,5 @@
+import NexusLoader from '../components/NexusLoader';
+import '../components/NexusLoader.css';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -268,7 +270,7 @@ export default function ItemDetail() {
             <div className="knowledge-logo">NEXUS</div>
           </div>
         </div>
-        <div className="loading-state">Loading...</div>
+        <NexusLoader isVisible={true} duration={1000} fullscreen={false} />
       </div>
     );
 

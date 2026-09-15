@@ -1,3 +1,5 @@
+import NexusLoader from './NexusLoader';
+import '../components/NexusLoader.css';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -5,11 +7,7 @@ export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="loading-state" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        Loading...
-      </div>
-    );
+    return <NexusLoader isVisible={true} duration={1000} fullscreen={false} />;
   }
 
   if (!user) {
