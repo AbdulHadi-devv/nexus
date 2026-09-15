@@ -25,6 +25,10 @@ const ITEM_ICONS = {
   RESOURCE: Library,
 };
 
+// Keep the loader on screen for at least this long,
+// so the snake animation always has time to finish.
+const MIN_LOADER_MS = 1400;
+
 export default function ItemDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -41,6 +45,7 @@ export default function ItemDetail() {
 
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [minLoadTimePassed, setMinLoadTimePassed] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [connections, setConnections] = useState([]);
@@ -55,6 +60,12 @@ export default function ItemDetail() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDeleteConn, setConfirmDeleteConn] = useState(null);
+
+  // Minimum loader display time — lets the snake animation finish.
+  useEffect(() => {
+    const t = setTimeout(() => setMinLoadTimePassed(true), MIN_LOADER_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     fetchItem();
@@ -262,7 +273,10 @@ export default function ItemDetail() {
       : connection.fromItem;
   };
 
-  if (loading)
+  // Show loader until BOTH:
+  //   1. the item fetch completes, AND
+  //   2. the minimum display time has passed
+  if (loading || !minLoadTimePassed)
     return (
       <div className="knowledge-page">
         <div className="knowledge-header">
@@ -270,7 +284,7 @@ export default function ItemDetail() {
             <div className="knowledge-logo">NEXUS</div>
           </div>
         </div>
-        <NexusLoader isVisible={true} duration={1000} fullscreen={false} />
+        <NexusLoader isVisible={true} duration={MIN_LOADER_MS} fullscreen={false} />
       </div>
     );
 

@@ -1,74 +1,136 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * NexusLoader
  * ----------
- * A branded page-loading animation:
- *   • Gradient rounded tile (matches the Nexus logo, no "N" letter)
- *   • A snake grows inside the tile, tracing the letter "N"
- *   • When the snake completes, the loader fades out
- *
- * Props:
- *   isVisible {boolean} — show/hide the loader
- *   duration  {number}  — how long the snake takes to grow (ms)
- *   onComplete {fn}     — fired when the snake finishes drawing
- *   fullscreen {boolean} — cover the whole viewport (default true)
+ * Branded loader: gradient tile + snake grows into an "N".
+ * Non-linear speed: burst → slow → burst.
+ * Always runs to completion. Locks body scroll while visible.
  */
+
+const N_PATH = 'M 25 80 L 25 20 L 75 80 L 75 20';
+const PATH_LENGTH = 200;
+
+// Segment boundaries (in path-length units)
+const SEG1_END = 60;    // bottom-left → top-left
+const SEG2_END = 138;   // top-left → bottom-right (end ~198)
+
+// Timing (ms)
+const DURATION = 1400;
+const T_SEG1 = 250;
+const T_SEG2 = DURATION - 500; // 900
+const T_SEG3 = 250;
+
 export default function NexusLoader({
   isVisible = true,
-  duration = 1400,
+  duration = DURATION,
   onComplete,
   fullscreen = true,
 }) {
-  const [progress, setProgress] = useState(0);
+  const [mounted, setMounted] = useState(isVisible);
   const [exiting, setExiting] = useState(false);
 
-  // The "N" path — a single unbroken stroke
-  // Coordinates are in a 100×100 viewBox
-  const N_PATH = 'M 25 80 L 25 20 L 75 80 L 75 20';
+  const svgPathRef = useRef(null);
+  const headRef = useRef(null);
+  const rafRef = useRef(null);
+  const startTimeRef = useRef(0);
+  const completedRef = useRef(false);
 
-  // Length of the path — computed once, used for stroke-dasharray
-  const PATH_LENGTH = 240; // approximate; the exact value is set below via ref if needed
-
+  // --- Mount / unmount ---
   useEffect(() => {
-    if (!isVisible) {
+    if (isVisible) {
+      setMounted(true);
+      setExiting(false);
+      completedRef.current = false;
+    } else if (mounted) {
       setExiting(true);
       const t = setTimeout(() => {
         setExiting(false);
-        setProgress(0);
-      }, 400);
+        setMounted(false);
+      }, 380);
       return () => clearTimeout(t);
     }
+  }, [isVisible, mounted]);
 
-    setProgress(0);
-    setExiting(false);
+  // --- Lock body scroll while visible ---
+  useEffect(() => {
+    if (!mounted || exiting) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [mounted, exiting]);
 
-    const start = performance.now();
-    let raf;
+  // --- Animation loop (direct DOM, no React re-render) ---
+  useEffect(() => {
+    if (!mounted) return;
+    const pathEl = svgPathRef.current;
+    const headEl = headRef.current;
+    if (!pathEl || !headEl) return;
+
+    // Measure real path length once
+    let realLen = PATH_LENGTH;
+    try {
+      realLen = pathEl.getTotalLength();
+    } catch { /* ignore */ }
+
+    startTimeRef.current = performance.now();
+
+    const easeOutQuad = (t) => 1 - Math.pow(1 - t, 2);
+    const easeInOutQuad = (t) =>
+      t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
     const tick = (now) => {
-      const elapsed = now - start;
+      const elapsed = now - startTimeRef.current;
       const t = Math.min(elapsed / duration, 1);
-      // easeOutCubic — smooth deceleration
-      const eased = 1 - Math.pow(1 - t, 3);
-      setProgress(eased);
+
+      let pathProgress;
+      if (t <= T_SEG1 / duration) {
+        const localT = t / (T_SEG1 / duration);
+        pathProgress = easeOutQuad(localT) * SEG1_END;
+      } else if (t <= (T_SEG1 + T_SEG2) / duration) {
+        const localT = (t - T_SEG1 / duration) / (T_SEG2 / duration);
+        pathProgress = SEG1_END + easeInOutQuad(localT) * (SEG2_END - SEG1_END);
+      } else {
+        const localT = (t - (T_SEG1 + T_SEG2) / duration) / (T_SEG3 / duration);
+        pathProgress = SEG2_END + easeOutQuad(localT) * (PATH_LENGTH - SEG2_END);
+      }
+
+      // Scale to real path length
+      const scaled = (pathProgress / PATH_LENGTH) * realLen;
+
+      // Direct DOM update — no React re-render
+      pathEl.style.strokeDasharray = `${realLen}`;
+      pathEl.style.strokeDashoffset = `${realLen - scaled}`;
+
+      // Move the snake head along the path
+      try {
+        const p = pathEl.getPointAtLength(scaled);
+        headEl.setAttribute('cx', p.x);
+        headEl.setAttribute('cy', p.y);
+        headEl.style.opacity = scaled > 2 && scaled < realLen - 2 ? '1' : '0';
+      } catch { /* ignore */ }
 
       if (t < 1) {
-        raf = requestAnimationFrame(tick);
+        rafRef.current = requestAnimationFrame(tick);
       } else {
-        onComplete?.();
+        headEl.style.opacity = '0';
+        if (!completedRef.current) {
+          completedRef.current = true;
+          onComplete?.();
+        }
       }
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isVisible, duration, onComplete]);
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [mounted, duration, onComplete]);
 
-  if (!isVisible && !exiting) return null;
-
-  // stroke-dashoffset: PATH_LENGTH means "nothing drawn"
-  //                0 means "fully drawn"
-  const dashOffset = PATH_LENGTH * (1 - progress);
+  if (!mounted && !exiting) return null;
 
   return (
     <div
@@ -80,35 +142,28 @@ export default function NexusLoader({
       aria-label="Loading"
     >
       <div className="nexus-loader-tile">
-        {/* Ambient glow behind the tile */}
         <div className="nexus-loader-glow" />
-
-        {/* The tile itself — gradient background, no N letter */}
         <div className="nexus-loader-tile-inner">
-          {/* The snake that draws the N */}
           <svg
             className="nexus-loader-svg"
             viewBox="0 0 100 100"
             xmlns="http://www.w3.org/2000/svg"
           >
             <defs>
-              {/* Slight glow for the snake stroke */}
               <filter id="nexus-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="1.8" result="blur" />
+                <feGaussianBlur stdDeviation="1.6" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
-
-              {/* Rounded line caps for a friendlier snake */}
               <linearGradient id="nexus-snake" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
                 <stop offset="100%" stopColor="#f0f0ff" stopOpacity="1" />
               </linearGradient>
             </defs>
 
-            {/* Faint guide path so the N is always slightly visible */}
+            {/* Faint guide path */}
             <path
               d={N_PATH}
               fill="none"
@@ -118,8 +173,9 @@ export default function NexusLoader({
               strokeLinejoin="round"
             />
 
-            {/* The growing snake */}
+            {/* Growing snake — driven by ref, no React re-render */}
             <path
+              ref={svgPathRef}
               d={N_PATH}
               fill="none"
               stroke="url(#nexus-snake)"
@@ -127,15 +183,18 @@ export default function NexusLoader({
               strokeLinecap="round"
               strokeLinejoin="round"
               filter="url(#nexus-glow)"
-              style={{
-                strokeDasharray: PATH_LENGTH,
-                strokeDashoffset: dashOffset,
-                transition: 'stroke-dashoffset 0.05s linear',
-              }}
             />
 
-            {/* The "head" of the snake — a bright dot that leads the stroke */}
-            <SnakeHead pathD={N_PATH} progress={progress} />
+            {/* Snake head — position set directly via ref */}
+            <circle
+              ref={headRef}
+              cx="25"
+              cy="80"
+              r="5.5"
+              fill="#ffffff"
+              filter="url(#nexus-glow)"
+              style={{ opacity: 0, transition: 'opacity 0.15s ease' }}
+            />
           </svg>
         </div>
       </div>
@@ -143,39 +202,5 @@ export default function NexusLoader({
       <div className="nexus-loader-label">NEXUS</div>
       <div className="nexus-loader-sub">Loading experience…</div>
     </div>
-  );
-}
-
-/**
- * Renders a small glowing dot at the current head of the snake.
- * Uses SVG path length math via getPointAtLength — implemented with a ref.
- */
-function SnakeHead({ pathD, progress }) {
-  const [point, setPoint] = useState({ x: 25, y: 80 });
-
-  useEffect(() => {
-    // Create a hidden path to measure length + get point at progress
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const tempPath = document.createElementNS(svgNS, 'path');
-    tempPath.setAttribute('d', pathD);
-    // Not attached to DOM — getTotalLength still works in all modern browsers
-    try {
-      const len = tempPath.getTotalLength();
-      const p = tempPath.getPointAtLength(len * progress);
-      setPoint({ x: p.x, y: p.y });
-    } catch {
-      /* ignore */
-    }
-  }, [pathD, progress]);
-
-  return (
-    <circle
-      cx={point.x}
-      cy={point.y}
-      r="5.5"
-      fill="#ffffff"
-      filter="url(#nexus-glow)"
-      opacity={progress > 0 && progress < 1 ? 1 : 0}
-    />
   );
 }

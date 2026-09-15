@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Nexus — Turn problems into ideas, solutions, and actionable MVPs." />
     <title>Nexus — AI Product Builder</title>
@@ -10,14 +10,19 @@
     <!-- ============================================================ -->
     <!-- NEXUS FIRST-PAINT PRELOADER                                   -->
     <!-- ============================================================ -->
-    <!-- Shown before React boots. Fades out once React mounts.        -->
+    <!-- Scroll is locked only while <body class="nexus-loading">      -->
+    <!-- is present. The class is removed once the preloader exits.    -->
     <!-- ============================================================ -->
     <style>
-      /* Pre-hydration loader styles — self-contained, no external CSS */
       html, body {
         margin: 0;
         padding: 0;
         background: #0b0b14;
+      }
+
+      /* Only lock scroll while the loading class is on <body> */
+      body.nexus-loading {
+        overflow: hidden;
       }
 
       #nexus-preloader {
@@ -32,6 +37,7 @@
         background: #0b0b14;
         opacity: 1;
         transition: opacity 0.4s ease;
+        overflow: hidden;
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
       }
 
@@ -94,11 +100,11 @@
         overflow: visible;
       }
 
-      /* The growing snake stroke */
       .nexus-pre-snake {
-        stroke-dasharray: 240;
-        stroke-dashoffset: 240;
-        animation: nexusPreSnake 1.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+        stroke-dasharray: 200;
+        stroke-dashoffset: 200;
+        animation: nexusPreSnake 1.4s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+        will-change: stroke-dashoffset;
       }
 
       .nexus-pre-label {
@@ -130,8 +136,18 @@
         50%      { opacity: 1;    transform: scale(1.08); }
       }
 
+      /* Piecewise snake: burst → slow → burst (11 stops) */
       @keyframes nexusPreSnake {
-        0%   { stroke-dashoffset: 240; }
+        0%   { stroke-dashoffset: 200; }
+        5%   { stroke-dashoffset: 187; }
+        10%  { stroke-dashoffset: 168; }
+        18%  { stroke-dashoffset: 140; }
+        30%  { stroke-dashoffset: 128; }
+        50%  { stroke-dashoffset: 100; }
+        70%  { stroke-dashoffset: 76; }
+        82%  { stroke-dashoffset: 62; }
+        90%  { stroke-dashoffset: 40; }
+        95%  { stroke-dashoffset: 20; }
         100% { stroke-dashoffset: 0; }
       }
 
@@ -152,7 +168,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="nexus-loading">
     <!-- Pre-hydration loader -->
     <div id="nexus-preloader" aria-label="Loading Nexus">
       <div class="nexus-pre-tile">
@@ -169,7 +185,6 @@
               </filter>
             </defs>
 
-            <!-- Guide path (faint) -->
             <path
               d="M 25 80 L 25 20 L 75 80 L 75 20"
               fill="none"
@@ -179,7 +194,6 @@
               stroke-linejoin="round"
             />
 
-            <!-- Growing snake -->
             <path
               class="nexus-pre-snake"
               d="M 25 80 L 25 20 L 75 80 L 75 20"
@@ -201,24 +215,61 @@
     <!-- React root -->
     <div id="root"></div>
 
-    <!-- Script to hide preloader once React mounts -->
     <script>
       (function () {
         var pre = document.getElementById('nexus-preloader');
         if (!pre) return;
 
-        // Fade out once React has painted something into #root
+        var MIN_DISPLAY_MS = 1600;
+        var startTime = Date.now();
+        var snakeDone = false;
+        var reactMounted = false;
+        var fadeStarted = false;
+
+        function unlockScroll() {
+          // Remove the loading class so the body's overflow returns to normal
+          document.body.classList.remove('nexus-loading');
+        }
+
+        function tryFadeOut() {
+          if (fadeStarted) return;
+          if (!snakeDone || !reactMounted) return;
+
+          var elapsed = Date.now() - startTime;
+          var wait = Math.max(0, MIN_DISPLAY_MS - elapsed);
+
+          fadeStarted = true;
+          setTimeout(function () {
+            pre.classList.add('exiting');
+            unlockScroll();
+            setTimeout(function () {
+              if (pre.parentNode) pre.parentNode.removeChild(pre);
+            }, 450);
+          }, wait);
+        }
+
+        var snake = pre.querySelector('.nexus-pre-snake');
+        if (snake) {
+          snake.addEventListener('animationend', function () {
+            snakeDone = true;
+            tryFadeOut();
+          });
+          setTimeout(function () {
+            if (!snakeDone) {
+              snakeDone = true;
+              tryFadeOut();
+            }
+          }, 2000);
+        } else {
+          snakeDone = true;
+        }
+
         var observer = new MutationObserver(function () {
           var root = document.getElementById('root');
           if (root && root.children.length > 0) {
-            // Give the app a beat to settle, then fade
-            setTimeout(function () {
-              pre.classList.add('exiting');
-              setTimeout(function () {
-                if (pre.parentNode) pre.parentNode.removeChild(pre);
-              }, 450);
-            }, 300);
             observer.disconnect();
+            reactMounted = true;
+            tryFadeOut();
           }
         });
         observer.observe(document.getElementById('root') || document.body, {
@@ -226,15 +277,16 @@
           subtree: true,
         });
 
-        // Safety net: always remove after 6 seconds, no matter what
+        // Absolute safety net
         setTimeout(function () {
           if (pre.parentNode) {
             pre.classList.add('exiting');
+            unlockScroll();
             setTimeout(function () {
               if (pre.parentNode) pre.parentNode.removeChild(pre);
             }, 450);
           }
-        }, 6000);
+        }, 5000);
       })();
     </script>
 

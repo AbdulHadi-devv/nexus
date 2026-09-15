@@ -3,6 +3,8 @@
 /* ============================================================ */
 
 .nexus-loader-overlay {
+  position: fixed;              /* always fill the viewport */
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -13,22 +15,14 @@
   animation: nexusLoaderFadeIn 0.25s ease-out both;
   user-select: none;
   pointer-events: none;
-}
-
-.nexus-loader-overlay.fullscreen {
-  position: fixed;
-  inset: 0;
+  overflow: hidden;             /* prevent scrollbars */
 }
 
 .nexus-loader-overlay.exiting {
-  animation: nexusLoaderFadeOut 0.4s ease-in forwards;
+  animation: nexusLoaderFadeOut 0.35s ease-in forwards;
 }
 
-/* Dark mode default; light mode fallback */
-:root {
-  --nexus-loader-bg: #0b0b14;
-}
-.light .nexus-loader-overlay,
+/* Light-mode fallback */
 :root:not(.dark) .nexus-loader-overlay {
   background: #f8f8fb;
 }
@@ -41,6 +35,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .nexus-loader-tile-inner {
@@ -60,7 +55,6 @@
   animation: nexusLoaderTilePop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-/* Soft inner radial highlight for depth */
 .nexus-loader-tile-inner::after {
   content: '';
   position: absolute;
@@ -73,7 +67,6 @@
   pointer-events: none;
 }
 
-/* Pulsing ambient glow behind the tile */
 .nexus-loader-glow {
   position: absolute;
   inset: -20%;
@@ -88,7 +81,6 @@
   pointer-events: none;
 }
 
-/* The SVG that holds the N path */
 .nexus-loader-svg {
   position: relative;
   width: 80%;
@@ -145,7 +137,6 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .nexus-loader-tile-inner,
   .nexus-loader-glow,
@@ -155,3 +146,19 @@
   }
 }
 
+@media (max-width: 480px) {
+  .nexus-loader-tile {
+    width: 108px;
+    height: 108px;
+  }
+  .nexus-loader-tile-inner {
+    border-radius: 24px;
+  }
+  .nexus-loader-label {
+    font-size: 1rem;
+    letter-spacing: 5px;
+  }
+  .nexus-loader-sub {
+    font-size: 0.7rem;
+  }
+}
