@@ -10,8 +10,8 @@
     <!-- ============================================================ -->
     <!-- NEXUS FIRST-PAINT PRELOADER                                   -->
     <!-- ============================================================ -->
-    <!-- Scroll is locked only while <body class="nexus-loading">      -->
-    <!-- is present. The class is removed once the preloader exits.    -->
+    <!-- 150ms delay → 1.4s snake animation → freeze at completed N.   -->
+    <!-- Fades out only after the snake finishes AND React mounts.     -->
     <!-- ============================================================ -->
     <style>
       html, body {
@@ -20,7 +20,6 @@
         background: #0b0b14;
       }
 
-      /* Only lock scroll while the loading class is on <body> */
       body.nexus-loading {
         overflow: hidden;
       }
@@ -100,10 +99,11 @@
         overflow: visible;
       }
 
+      /* Snake: 150ms delay, 1.4s duration, ends frozen at dashoffset 0 */
       .nexus-pre-snake {
         stroke-dasharray: 200;
         stroke-dashoffset: 200;
-        animation: nexusPreSnake 1.4s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+        animation: nexusPreSnake 1.4s cubic-bezier(0.4, 0, 0.6, 1) 0.15s forwards;
         will-change: stroke-dashoffset;
       }
 
@@ -113,7 +113,7 @@
         letter-spacing: 6px;
         color: #e5e7eb;
         text-indent: 6px;
-        animation: nexusPreFade 0.7s ease-out 0.3s both;
+        animation: nexusPreFade 0.7s ease-out 0.45s both;
       }
 
       .nexus-pre-sub {
@@ -122,7 +122,7 @@
         letter-spacing: 1.5px;
         text-transform: uppercase;
         color: #94a3b8;
-        animation: nexusPreFade 0.7s ease-out 0.45s both;
+        animation: nexusPreFade 0.7s ease-out 0.6s both;
       }
 
       @keyframes nexusPreTilePop {
@@ -169,7 +169,6 @@
     </style>
   </head>
   <body class="nexus-loading">
-    <!-- Pre-hydration loader -->
     <div id="nexus-preloader" aria-label="Loading Nexus">
       <div class="nexus-pre-tile">
         <div class="nexus-pre-glow"></div>
@@ -212,7 +211,6 @@
       <div class="nexus-pre-sub">Loading experience…</div>
     </div>
 
-    <!-- React root -->
     <div id="root"></div>
 
     <script>
@@ -220,6 +218,7 @@
         var pre = document.getElementById('nexus-preloader');
         if (!pre) return;
 
+        // Snake delay (150ms) + duration (1400ms) + small buffer = 1600ms
         var MIN_DISPLAY_MS = 1600;
         var startTime = Date.now();
         var snakeDone = false;
@@ -227,7 +226,6 @@
         var fadeStarted = false;
 
         function unlockScroll() {
-          // Remove the loading class so the body's overflow returns to normal
           document.body.classList.remove('nexus-loading');
         }
 
@@ -250,16 +248,18 @@
 
         var snake = pre.querySelector('.nexus-pre-snake');
         if (snake) {
+          // Delay + duration = ~1550ms from start
           snake.addEventListener('animationend', function () {
             snakeDone = true;
             tryFadeOut();
           });
+          // Safety in case animationend never fires
           setTimeout(function () {
             if (!snakeDone) {
               snakeDone = true;
               tryFadeOut();
             }
-          }, 2000);
+          }, 2200);
         } else {
           snakeDone = true;
         }

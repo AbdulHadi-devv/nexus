@@ -5,17 +5,19 @@ import { useEffect, useRef, useState } from 'react';
  * ----------
  * Branded loader: gradient tile + snake grows into an "N".
  * Non-linear speed: burst → slow → burst.
- * Always runs to completion. Locks body scroll while visible.
+ * - 150ms startup delay
+ * - Runs ONCE — freezes at 100% (completed N) until unmounted
  */
 
 const N_PATH = 'M 25 80 L 25 20 L 75 80 L 75 20';
 const PATH_LENGTH = 200;
 
 // Segment boundaries (in path-length units)
-const SEG1_END = 60;    // bottom-left → top-left
-const SEG2_END = 138;   // top-left → bottom-right (end ~198)
+const SEG1_END = 60;
+const SEG2_END = 138;
 
-// Timing (ms)
+// Timings (ms)
+const START_DELAY = 150;       // ← startup delay
 const DURATION = 1400;
 const T_SEG1 = 250;
 const T_SEG2 = DURATION - 500; // 900
@@ -55,17 +57,17 @@ export default function NexusLoader({
   // --- Lock body scroll while visible ---
   useEffect(() => {
     if (!mounted || exiting) return;
-    const prevOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
     };
   }, [mounted, exiting]);
 
-  // --- Animation loop (direct DOM, no React re-render) ---
+  // --- Animation loop (runs once, then freezes) ---
   useEffect(() => {
     if (!mounted) return;
     const pathEl = svgPathRef.current;
@@ -78,56 +80,70 @@ export default function NexusLoader({
       realLen = pathEl.getTotalLength();
     } catch { /* ignore */ }
 
-    startTimeRef.current = performance.now();
+    // Initialize to 0 progress (nothing drawn)
+    pathEl.style.strokeDasharray = `${realLen}`;
+    pathEl.style.strokeDashoffset = `${realLen}`;
+    headEl.setAttribute('cx', '25');
+    headEl.setAttribute('cy', '80');
+    headEl.style.opacity = '0';
 
-    const easeOutQuad = (t) => 1 - Math.pow(1 - t, 2);
-    const easeInOutQuad = (t) =>
-      t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    // Wait START_DELAY before kicking off the animation
+    const delayTimeout = setTimeout(() => {
+      startTimeRef.current = performance.now();
 
-    const tick = (now) => {
-      const elapsed = now - startTimeRef.current;
-      const t = Math.min(elapsed / duration, 1);
+      const easeOutQuad = (t) => 1 - Math.pow(1 - t, 2);
+      const easeInOutQuad = (t) =>
+        t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
-      let pathProgress;
-      if (t <= T_SEG1 / duration) {
-        const localT = t / (T_SEG1 / duration);
-        pathProgress = easeOutQuad(localT) * SEG1_END;
-      } else if (t <= (T_SEG1 + T_SEG2) / duration) {
-        const localT = (t - T_SEG1 / duration) / (T_SEG2 / duration);
-        pathProgress = SEG1_END + easeInOutQuad(localT) * (SEG2_END - SEG1_END);
-      } else {
-        const localT = (t - (T_SEG1 + T_SEG2) / duration) / (T_SEG3 / duration);
-        pathProgress = SEG2_END + easeOutQuad(localT) * (PATH_LENGTH - SEG2_END);
-      }
+      const tick = (now) => {
+        const elapsed = now - startTimeRef.current;
+        const t = Math.min(elapsed / duration, 1);
 
-      // Scale to real path length
-      const scaled = (pathProgress / PATH_LENGTH) * realLen;
-
-      // Direct DOM update — no React re-render
-      pathEl.style.strokeDasharray = `${realLen}`;
-      pathEl.style.strokeDashoffset = `${realLen - scaled}`;
-
-      // Move the snake head along the path
-      try {
-        const p = pathEl.getPointAtLength(scaled);
-        headEl.setAttribute('cx', p.x);
-        headEl.setAttribute('cy', p.y);
-        headEl.style.opacity = scaled > 2 && scaled < realLen - 2 ? '1' : '0';
-      } catch { /* ignore */ }
-
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        headEl.style.opacity = '0';
-        if (!completedRef.current) {
-          completedRef.current = true;
-          onComplete?.();
+        let pathProgress;
+        if (t <= T_SEG1 / duration) {
+          const localT = t / (T_SEG1 / duration);
+          pathProgress = easeOutQuad(localT) * SEG1_END;
+        } else if (t <= (T_SEG1 + T_SEG2) / duration) {
+          const localT = (t - T_SEG1 / duration) / (T_SEG2 / duration);
+          pathProgress = SEG1_END + easeInOutQuad(localT) * (SEG2_END - SEG1_END);
+        } else {
+          const localT = (t - (T_SEG1 + T_SEG2) / duration) / (T_SEG3 / duration);
+          pathProgress = SEG2_END + easeOutQuad(localT) * (PATH_LENGTH - SEG2_END);
         }
-      }
-    };
 
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+        const scaled = (pathProgress / PATH_LENGTH) * realLen;
+
+        // Update the SVG directly — no React re-render
+        pathEl.style.strokeDashoffset = `${realLen - scaled}`;
+
+        try {
+          const p = pathEl.getPointAtLength(scaled);
+          headEl.setAttribute('cx', p.x);
+          headEl.setAttribute('cy', p.y);
+          headEl.style.opacity = scaled > 2 && scaled < realLen - 2 ? '1' : '0';
+        } catch { /* ignore */ }
+
+        if (t < 1) {
+          rafRef.current = requestAnimationFrame(tick);
+        } else {
+          // Final frame — freeze at 100%
+          pathEl.style.strokeDashoffset = '0';
+          headEl.style.opacity = '0';
+          if (!completedRef.current) {
+            completedRef.current = true;
+            onComplete?.();
+          }
+          // NOTE: No reset — animation stays at completed state
+        }
+      };
+
+      rafRef.current = requestAnimationFrame(tick);
+    }, START_DELAY);
+
+    return () => {
+      clearTimeout(delayTimeout);
+      cancelAnimationFrame(rafRef.current);
+    };
   }, [mounted, duration, onComplete]);
 
   if (!mounted && !exiting) return null;
@@ -173,7 +189,7 @@ export default function NexusLoader({
               strokeLinejoin="round"
             />
 
-            {/* Growing snake — driven by ref, no React re-render */}
+            {/* Growing snake */}
             <path
               ref={svgPathRef}
               d={N_PATH}
@@ -185,7 +201,7 @@ export default function NexusLoader({
               filter="url(#nexus-glow)"
             />
 
-            {/* Snake head — position set directly via ref */}
+            {/* Snake head */}
             <circle
               ref={headRef}
               cx="25"
