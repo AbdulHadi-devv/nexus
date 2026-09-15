@@ -1,45 +1,36 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import NexusLoader from '../components/NexusLoader';
 import '../components/NexusLoader.css';
 
 const LoadingContext = createContext(null);
 
+/**
+ * Single global NexusLoader instance.
+ * Pages call `showLoader()` on mount and `hideLoader()` when their data is ready.
+ * The loader itself ensures the snake animation runs to completion.
+ */
 export function LoadingProvider({ children }) {
   const [loading, setLoading] = useState(false);
-  const [duration, setDuration] = useState(1400);
+  const hideRef = useRef(null);
 
   const showLoader = useCallback((opts = {}) => {
-    setDuration(opts.duration ?? 1400);
     setLoading(true);
+    if (hideRef.current) clearTimeout(hideRef.current);
   }, []);
 
   const hideLoader = useCallback(() => {
-    setLoading(false);
+    // Small debounce so rapid show/hide calls don't flicker
+    if (hideRef.current) clearTimeout(hideRef.current);
+    hideRef.current = setTimeout(() => {
+      setLoading(false);
+    }, 50);
   }, []);
 
-  /**
-   * Wrap an async function with the loader:
-   *   await withLoader(() => fetch('/api/items'))
-   */
-  const withLoader = useCallback(
-    async (fn, opts = {}) => {
-      showLoader(opts);
-      try {
-        return await fn();
-      } finally {
-        // Ensure the snake finishes drawing at minimum
-        const wait = opts.duration ?? 1400;
-        await new Promise((r) => setTimeout(r, wait));
-        hideLoader();
-      }
-    },
-    [showLoader, hideLoader]
-  );
-
   return (
-    <LoadingContext.Provider value={{ loading, showLoader, hideLoader, withLoader }}>
+    <LoadingContext.Provider value={{ loading, showLoader, hideLoader }}>
       {children}
-      <NexusLoader isVisible={loading} duration={duration} />
+      {/* Single, app-wide loader instance */}
+      <NexusLoader isVisible={loading} duration={1400} fullscreen={false} />
     </LoadingContext.Provider>
   );
 }

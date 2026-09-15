@@ -1,22 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { useLoading } from '../context/LoadingContext';
 
-/**
- * useMinimumLoader
- * ----------------
- * Returns `true` while the NexusLoader should stay visible.
- * Stays true until BOTH:
- *   1. `isLoading` becomes false (data resolved), AND
- *   2. at least `minMs` has elapsed since mount (snake finishes)
- */
 export function useMinimumLoader(isLoading, minMs = 1400) {
-  const [minTimePassed, setMinTimePassed] = useState(false);
+  const { showLoader, hideLoader } = useLoading();
+  const mountTime = useRef(performance.now());
 
   useEffect(() => {
-    const t = setTimeout(() => setMinTimePassed(true), minMs);
-    return () => clearTimeout(t);
-  }, [minMs]);
+    showLoader();
+  }, [showLoader]);
 
-  return isLoading || !minTimePassed;
+  useEffect(() => {
+    if (isLoading) return;
+
+    const elapsed = performance.now() - mountTime.current;
+    const remaining = Math.max(0, minMs - elapsed);
+
+    const timer = setTimeout(() => {
+      hideLoader();
+    }, remaining);
+
+    return () => clearTimeout(timer);
+  }, [isLoading, minMs, showLoader, hideLoader]);
 }
 
 export default useMinimumLoader;
