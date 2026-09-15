@@ -9,12 +9,15 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
+import useMinimumLoader from '../hooks/useMinimumLoader';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackToTop from '../components/BackToTop';
 import ImportModal from '../components/ImportModal';
 import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
+import NexusLoader from '../components/NexusLoader';
 import { ItemGridSkeleton, StatCardSkeleton } from '../components/Skeletons';
 import * as api from '../services/api';
+import '../components/NexusLoader.css';
 
 const ITEM_ICONS = {
   NOTE: FileText,
@@ -43,6 +46,8 @@ export default function Dashboard() {
     itemId: null,
     itemTitle: '',
   });
+
+  const showLoader = useMinimumLoader(loading, 1400);
 
   useEffect(() => {
     fetchItems();
@@ -225,9 +230,12 @@ export default function Dashboard() {
     { icon: Code2, value: items.filter(i => i.type === 'CODE').length, label: 'Code' },
   ];
 
+  if (showLoader) {
+    return <NexusLoader isVisible={true} duration={1400} fullscreen={false} />;
+  }
+
   return (
     <div className="knowledge-page page-transition">
-      {/* Header */}
       <header className="knowledge-header">
         <div className="knowledge-header-content">
           <div className="knowledge-logo">NEXUS</div>
@@ -274,7 +282,6 @@ export default function Dashboard() {
       </header>
 
       <div className="dashboard-content">
-        {/* Statistics */}
         {loading ? (
           <StatCardSkeleton count={6} />
         ) : (
@@ -296,7 +303,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Primary CTA + Tools */}
         <div className="dashboard-actions-bar">
           <Link
             to="/knowledge/create"
@@ -340,7 +346,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Search */}
         <div className="search-section">
           <form onSubmit={handleSearch} className="search-form">
             <div className="search-input-wrapper">
@@ -369,7 +374,6 @@ export default function Dashboard() {
           </form>
         </div>
 
-        {/* Filter Tabs */}
         <div className="filter-tabs">
           <button
             className={filterType === 'all' ? 'active' : ''}
@@ -409,7 +413,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Items Grid */}
         {loading ? (
           <ItemGridSkeleton count={6} />
         ) : (

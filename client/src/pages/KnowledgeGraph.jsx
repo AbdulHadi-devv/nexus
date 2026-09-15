@@ -9,7 +9,10 @@ import * as api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
+import useMinimumLoader from '../hooks/useMinimumLoader';
 import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
+import NexusLoader from '../components/NexusLoader';
+import '../components/NexusLoader.css';
 
 export default function KnowledgeGraph() {
   const { user } = useAuth();
@@ -22,6 +25,8 @@ export default function KnowledgeGraph() {
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
   const networkRef = useRef(null);
   const containerRef = useRef(null);
+
+  const showLoader = useMinimumLoader(loading, 1400);
 
   useEffect(() => {
     fetchData();
@@ -260,17 +265,8 @@ export default function KnowledgeGraph() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="knowledge-page">
-        <div className="knowledge-header">
-          <div className="knowledge-header-content">
-            <div className="knowledge-logo">NEXUS</div>
-          </div>
-        </div>
-        <div className="loading-state">Building your knowledge graph...</div>
-      </div>
-    );
+  if (showLoader) {
+    return <NexusLoader isVisible={true} duration={1400} fullscreen={false} />;
   }
 
   return (

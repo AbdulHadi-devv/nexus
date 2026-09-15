@@ -7,8 +7,11 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
+import useMinimumLoader from '../hooks/useMinimumLoader';
 import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
+import NexusLoader from '../components/NexusLoader';
 import * as api from '../services/api';
+import '../components/NexusLoader.css';
 
 const ITEM_ICONS = {
   NOTE: FileText,
@@ -24,6 +27,8 @@ export default function StatsDashboard() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const showLoader = useMinimumLoader(loading, 1400);
 
   useEffect(() => {
     fetchItems();
@@ -117,17 +122,8 @@ export default function StatsDashboard() {
     .sort((a, b) => b.connectionCount - a.connectionCount)
     .slice(0, 5);
 
-  if (loading) {
-    return (
-      <div className="knowledge-page">
-        <div className="knowledge-header">
-          <div className="knowledge-header-content">
-            <div className="knowledge-logo">NEXUS</div>
-          </div>
-        </div>
-        <div className="loading-state">Loading statistics...</div>
-      </div>
-    );
+  if (showLoader) {
+    return <NexusLoader isVisible={true} duration={1400} fullscreen={false} />;
   }
 
   return (

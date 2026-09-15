@@ -8,10 +8,13 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { useKnowledgeShortcuts } from '../hooks/useKnowledgeShortcuts';
+import useMinimumLoader from '../hooks/useMinimumLoader';
 import ConfirmDialog from '../components/ConfirmDialog';
 import HeaderShortcutsButton from '../components/HeaderShortcutsButton';
 import CustomSelect from '../components/CustomSelect';
+import NexusLoader from '../components/NexusLoader';
 import * as api from '../services/api';
+import '../components/NexusLoader.css';
 
 export default function TagManager() {
   const { user } = useAuth();
@@ -31,6 +34,8 @@ export default function TagManager() {
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#6366f1');
   const [alertDismissed, setAlertDismissed] = useState(false);
+
+  const showLoader = useMinimumLoader(loading, 1400);
 
   useEffect(() => {
     fetchTags();
@@ -171,6 +176,10 @@ export default function TagManager() {
     '#6366f1', '#ec4899', '#10b981', '#f59e0b',
     '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16',
   ];
+
+  if (showLoader) {
+    return <NexusLoader isVisible={true} duration={1400} fullscreen={false} />;
+  }
 
   return (
     <div className="knowledge-page page-transition">
